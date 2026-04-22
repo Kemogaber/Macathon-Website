@@ -6,16 +6,9 @@ from models.schemas import HealthResponse
 
 app = FastAPI(title="Macathon Table Extractor API", version="1.0.0")
 
-_origins = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
-if _frontend_url := os.getenv("FRONTEND_URL"):
-    _origins.append(_frontend_url)
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_origins,
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
