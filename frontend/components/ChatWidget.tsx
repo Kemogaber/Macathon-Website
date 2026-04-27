@@ -1,11 +1,38 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { sendChat, type ChatMessage } from "@/lib/api";
+import { streamChat, type ChatMessage } from "@/lib/api";
 
 interface Props {
   jobId?: string;
   attachedTableCount?: number;
+}
+
+const STORAGE_KEY = "tablex.chat.v1";
+
+function loadMessages(): ChatMessage[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (m): m is ChatMessage =>
+        m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string",
+    );
+  } catch {
+    return [];
+  }
+}
+
+function saveMessages(msgs: ChatMessage[]) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(msgs));
+  } catch {
+    /* quota exceeded — ignore */
+  }
 }
 
 export default function ChatWidget({ jobId, attachedTableCount = 0 }: Props) {
@@ -15,6 +42,17 @@ export default function ChatWidget({ jobId, attachedTableCount = 0 }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  // Load persisted messages once on mount.
+  useEffect(() => {
+    setMessages(loadMessages());
+  }, []);
+
+  // Persist on every change.
+  useEffect(() => {
+    saveMessages(messages);
+  }, [messages]);
 
   useEffect(() => {
     if (!open) return;
@@ -29,14 +67,56 @@ export default function ChatWidget({ jobId, attachedTableCount = 0 }: Props) {
     setInput("");
     setError(null);
     setBusy(true);
+
+    // Append a placeholder assistant message that we mutate as deltas arrive.
+    const withAssistant: ChatMessage[] = [...next, { role: "assistant", content: "" }];
+    setMessages(withAssistant);
+    const assistantIdx = withAssistant.length - 1;
+
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+
     try {
-      const { reply } = await sendChat(next, jobId);
-      setMessages([...next, { role: "assistant", content: reply }]);
+      let acc = "";
+      await streamChat(
+        next,
+        jobId,
+        (delta) => {
+          acc += delta;
+          setMessages((prev) => {
+            const copy = [...prev];
+            copy[assistantIdx] = { role: "assistant", content: acc };
+            return copy;
+          });
+        },
+        ctrl.signal,
+      );
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Chat failed");
+      // If the user aborted, keep whatever was streamed so far; otherwise show error.
+      if ((e as Error).name === "AbortError") {
+        // leave messages as-is
+      } else {
+        setError(e instanceof Error ? e.message : "Chat failed");
+        // Drop the empty assistant placeholder if nothing was streamed.
+        setMessages((prev) => {
+          if (prev[assistantIdx]?.content === "") return prev.slice(0, -1);
+          return prev;
+        });
+      }
     } finally {
       setBusy(false);
+      abortRef.current = null;
     }
+  }
+
+  function stop() {
+    abortRef.current?.abort();
+  }
+
+  function clearChat() {
+    abortRef.current?.abort();
+    setMessages([]);
+    setError(null);
   }
 
   function onKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -51,7 +131,7 @@ export default function ChatWidget({ jobId, attachedTableCount = 0 }: Props) {
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="fixed bottom-6 left-6 z-40 w-14 h-14 rounded-full bg-cyan text-black shadow-xl hover:scale-105 transition-transform flex items-center justify-center text-xl font-bold"
+          className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-cyan text-black shadow-xl hover:scale-105 transition-transform flex items-center justify-center text-xl font-bold"
           aria-label="Open assistant"
         >
           💬
@@ -59,30 +139,37 @@ export default function ChatWidget({ jobId, attachedTableCount = 0 }: Props) {
       )}
 
       {open && (
-        <div className="fixed bottom-6 left-6 z-40 w-[380px] max-w-[calc(100vw-3rem)] h-[560px] max-h-[calc(100vh-3rem)] glass rounded-2xl border border-border shadow-2xl flex flex-col overflow-hidden">
+        <div className="fixed bottom-6 right-6 z-40 w-[380px] max-w-[calc(100vw-3rem)] h-[560px] max-h-[calc(100vh-3rem)] glass rounded-2xl border border-border shadow-2xl flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface-3">
-            <div>
+            <div className="min-w-0">
               <div className="text-sm font-bold text-text">Assistant</div>
               {jobId && attachedTableCount > 0 && (
-                <div className="text-[10px] font-mono text-muted-2 mt-0.5">
+                <div className="text-[10px] font-mono text-muted-2 mt-0.5 truncate">
                   Attached: {attachedTableCount} table
                   {attachedTableCount === 1 ? "" : "s"} from current job
                 </div>
               )}
             </div>
-            <button
-              onClick={() => setOpen(false)}
-              className="text-muted-2 hover:text-text text-lg leading-none px-2"
-              aria-label="Close"
-            >
-              ×
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={clearChat}
+                disabled={messages.length === 0 && !busy}
+                className="text-[10px] font-mono px-2 py-1 rounded text-muted-2 hover:text-text hover:bg-overlay disabled:opacity-30"
+                title="Clear conversation"
+              >
+                Clear
+              </button>
+              <button
+                onClick={() => setOpen(false)}
+                className="text-muted-2 hover:text-text text-lg leading-none px-2"
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
           </div>
 
-          <div
-            ref={scrollRef}
-            className="flex-1 overflow-y-auto p-4 space-y-3 text-sm"
-          >
+          <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 text-sm">
             {messages.length === 0 && (
               <div className="text-muted-2 text-xs leading-relaxed">
                 Ask about your extracted tables, OCR fixes, or how the demo
@@ -96,14 +183,9 @@ export default function ChatWidget({ jobId, attachedTableCount = 0 }: Props) {
             )}
             {messages.map((m, i) => (
               <Bubble key={i} role={m.role}>
-                {m.content}
+                {m.content || (busy && i === messages.length - 1 ? <span className="opacity-60">…</span> : "")}
               </Bubble>
             ))}
-            {busy && (
-              <Bubble role="assistant">
-                <span className="opacity-60">Thinking…</span>
-              </Bubble>
-            )}
             {error && (
               <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
                 {error}
@@ -122,13 +204,22 @@ export default function ChatWidget({ jobId, attachedTableCount = 0 }: Props) {
                 disabled={busy}
                 className="flex-1 resize-none rounded-lg border border-border bg-input px-3 py-2 text-xs font-mono text-text placeholder:text-muted-2 outline-none focus:border-cyan/50 disabled:opacity-50"
               />
-              <button
-                onClick={send}
-                disabled={busy || !input.trim()}
-                className="px-3 py-2 rounded-lg bg-cyan text-black text-xs font-bold disabled:opacity-40"
-              >
-                Send
-              </button>
+              {busy ? (
+                <button
+                  onClick={stop}
+                  className="px-3 py-2 rounded-lg bg-red-500/15 border border-red-400/40 hover:bg-red-500/25 text-red-200 light:text-red-700 text-xs font-bold"
+                >
+                  Stop
+                </button>
+              ) : (
+                <button
+                  onClick={send}
+                  disabled={!input.trim()}
+                  className="px-3 py-2 rounded-lg bg-cyan text-black text-xs font-bold disabled:opacity-40"
+                >
+                  Send
+                </button>
+              )}
             </div>
           </div>
         </div>

@@ -10,6 +10,7 @@ import QuadEditor, {
 } from "@/components/QuadEditor";
 import ImageResults from "@/components/ImageResults";
 import {
+  cancelJob,
   createJob,
   detectPages,
   getJobStatus,
@@ -569,9 +570,20 @@ export default function DemoPage() {
                 : `Confirm all (${confirmableCount})`}
             </button>
             {(busy === "confirm-one" || busy === "confirm-all") && (
-              <span className="text-xs font-mono text-cyan">
-                {Math.round(confirmProgress * 100)}%
-              </span>
+              <>
+                <span className="text-xs font-mono text-cyan">
+                  {Math.round(confirmProgress * 100)}%
+                </span>
+                <button
+                  onClick={() => {
+                    if (job) cancelJob(job.job_id);
+                    toast.success("Cancel requested", "Stopping after current table");
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-red-500/15 border border-red-400/40 hover:bg-red-500/25 text-red-200 light:text-red-700 text-xs font-bold"
+                >
+                  Cancel
+                </button>
+              </>
             )}
           </div>
 

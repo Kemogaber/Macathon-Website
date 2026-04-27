@@ -4,10 +4,12 @@ Reads the API key from $GROQ_API_KEY. Returns 503 if missing.
 """
 from __future__ import annotations
 
+import json
 import os
 
 import httpx
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 import jobs as jobsvc
@@ -86,18 +88,37 @@ async def chat(req: ChatRequest):
         "messages": messages,
         "temperature": 0.3,
         "max_tokens": 1024,
+        "stream": True,
     }
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
-    try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            r = await client.post(GROQ_URL, json=payload, headers=headers)
-        if r.status_code >= 400:
-            raise HTTPException(r.status_code, f"Groq error: {r.text[:300]}")
-        data = r.json()
-        reply = data["choices"][0]["message"]["content"]
-        return {"reply": reply, "model": data.get("model", GROQ_MODEL)}
-    except httpx.HTTPError as e:
-        raise HTTPException(502, f"Upstream error: {e}")
+
+    async def stream_groq():
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                async with client.stream(
+                    "POST", GROQ_URL, json=payload, headers=headers
+                ) as r:
+                    if r.status_code >= 400:
+                        body = (await r.aread()).decode("utf-8", "replace")
+                        yield f"\x00ERROR\x00Groq {r.status_code}: {body[:300]}".encode()
+                        return
+                    async for line in r.aiter_lines():
+                        if not line or not line.startswith("data: "):
+                            continue
+                        data = line[6:]
+                        if data == "[DONE]":
+                            break
+                        try:
+                            obj = json.loads(data)
+                            delta = obj["choices"][0].get("delta", {}).get("content")
+                            if delta:
+                                yield delta.encode("utf-8")
+                        except Exception:
+                            continue
+        except httpx.HTTPError as e:
+            yield f"\x00ERROR\x00Upstream: {e}".encode()
+
+    return StreamingResponse(stream_groq(), media_type="text/plain; charset=utf-8")

@@ -138,20 +138,44 @@ export interface ChatMessage {
   content: string;
 }
 
-export async function sendChat(
+export async function streamChat(
   messages: ChatMessage[],
-  jobId?: string,
-): Promise<{ reply: string; model: string }> {
+  jobId: string | undefined,
+  onDelta: (text: string) => void,
+  signal?: AbortSignal,
+): Promise<void> {
   const res = await fetch(`${API_URL}/api/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ messages, job_id: jobId ?? null }),
+    signal,
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }));
+    const err = await res
+      .json()
+      .catch(() => ({ detail: `HTTP ${res.status}` }));
     throw new Error(err.detail ?? `Request failed (${res.status})`);
   }
-  return res.json();
+  if (!res.body) throw new Error("No response body");
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  // Server emits "\x00ERROR\x00<message>" once on upstream failure; otherwise
+  // pure UTF-8 text deltas.
+  let acc = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    acc += decoder.decode(value, { stream: true });
+    const errIdx = acc.indexOf("\x00ERROR\x00");
+    if (errIdx >= 0) {
+      const before = acc.slice(0, errIdx);
+      if (before) onDelta(before);
+      throw new Error(acc.slice(errIdx + 7));
+    }
+    onDelta(acc);
+    acc = "";
+  }
 }
 
 export async function cancelJob(jobId: string): Promise<void> {
