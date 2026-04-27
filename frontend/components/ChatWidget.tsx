@@ -57,6 +57,57 @@ export default function ChatWidget({
   const showNudge = !!nudge && !open && !nudgeDismissed;
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  // null = default bottom-right anchor. Set on first drag.
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+  const [size, setSize] = useState<{ w: number; h: number }>({ w: 380, h: 560 });
+
+  function startDrag(e: React.MouseEvent) {
+    // Ignore clicks on buttons inside the header.
+    if ((e.target as HTMLElement).closest("button")) return;
+    e.preventDefault();
+    const rect = panelRef.current?.getBoundingClientRect();
+    const start = {
+      left: pos?.left ?? rect?.left ?? 0,
+      top: pos?.top ?? rect?.top ?? 0,
+      mx: e.clientX,
+      my: e.clientY,
+    };
+    function onMove(ev: MouseEvent) {
+      const left = Math.max(
+        0,
+        Math.min(window.innerWidth - size.w, start.left + ev.clientX - start.mx),
+      );
+      const top = Math.max(
+        0,
+        Math.min(window.innerHeight - 40, start.top + ev.clientY - start.my),
+      );
+      setPos({ left, top });
+    }
+    function onUp() {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }
+
+  function startResize(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    const start = { w: size.w, h: size.h, mx: e.clientX, my: e.clientY };
+    function onMove(ev: MouseEvent) {
+      const w = Math.max(300, Math.min(window.innerWidth - 24, start.w + ev.clientX - start.mx));
+      const h = Math.max(360, Math.min(window.innerHeight - 24, start.h + ev.clientY - start.my));
+      setSize({ w, h });
+    }
+    function onUp() {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }
 
   // Load persisted messages once on mount.
   useEffect(() => {
@@ -186,8 +237,19 @@ export default function ChatWidget({
       )}
 
       {open && (
-        <div className="fixed bottom-6 right-6 z-50 w-[380px] max-w-[calc(100vw-3rem)] h-[560px] max-h-[calc(100vh-6rem)] bg-background rounded-2xl border border-border shadow-2xl flex flex-col overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface-3">
+        <div
+          ref={panelRef}
+          style={
+            pos
+              ? { left: pos.left, top: pos.top, width: size.w, height: size.h }
+              : { right: 24, bottom: 24, width: size.w, height: size.h }
+          }
+          className="fixed z-50 bg-background rounded-2xl border border-border shadow-2xl flex flex-col overflow-hidden"
+        >
+          <div
+            onMouseDown={startDrag}
+            className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface-3 cursor-move select-none"
+          >
             <div className="min-w-0">
               <div className="text-sm font-bold text-text">Assistant</div>
               {jobId && attachedTableCount > 0 && (
@@ -283,6 +345,16 @@ export default function ChatWidget({
               ▾ Close
             </button>
           </div>
+          <div
+            onMouseDown={startResize}
+            title="Drag to resize"
+            aria-label="Resize chat"
+            className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize"
+            style={{
+              background:
+                "linear-gradient(135deg, transparent 50%, rgba(0,212,255,0.6) 50%)",
+            }}
+          />
         </div>
       )}
     </>

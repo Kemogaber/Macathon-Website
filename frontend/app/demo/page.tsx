@@ -12,7 +12,6 @@ import QuadEditor, {
 import ImageResults from "@/components/ImageResults";
 import {
   addFilesToJob,
-  cancelJob,
   createJob,
   detectPages,
   getJobStatus,
@@ -541,17 +540,9 @@ export default function DemoPage() {
                   onAdd={handleAddMoreFiles}
                 />
                 <button
-                  onClick={() => handleRotateCurrentPage(-90)}
-                  disabled={busy !== null || ps.recognized}
-                  title="Rotate 90° left"
-                  className="w-8 h-7 rounded-lg border border-border bg-overlay hover:bg-overlay/70 text-muted-2 hover:text-text text-sm flex items-center justify-center disabled:opacity-30"
-                >
-                  ↺
-                </button>
-                <button
                   onClick={() => handleRotateCurrentPage(90)}
                   disabled={busy !== null || ps.recognized}
-                  title="Rotate 90° right"
+                  title="Rotate 90° clockwise"
                   className="w-8 h-7 rounded-lg border border-border bg-overlay hover:bg-overlay/70 text-muted-2 hover:text-text text-sm flex items-center justify-center disabled:opacity-30"
                 >
                   ↻
@@ -709,20 +700,9 @@ export default function DemoPage() {
                 : `Confirm all (${confirmableCount})`}
             </button>
             {(busy === "confirm-one" || busy === "confirm-all") && (
-              <>
-                <span className="text-xs font-mono text-cyan">
-                  {Math.round(confirmProgress * 100)}%
-                </span>
-                <button
-                  onClick={() => {
-                    if (job) cancelJob(job.job_id);
-                    toast.success("Cancel requested", "Stopping after current table");
-                  }}
-                  className="px-3 py-1.5 rounded-lg bg-red-500/15 border border-red-400/40 hover:bg-red-500/25 text-red-200 light:text-red-700 text-xs font-bold"
-                >
-                  Cancel
-                </button>
-              </>
+              <span className="text-xs font-mono text-cyan">
+                {Math.round(confirmProgress * 100)}%
+              </span>
             )}
           </div>
 

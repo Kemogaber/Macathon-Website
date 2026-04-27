@@ -254,7 +254,7 @@ export default function ImageResults({ jobId, tables }: Props) {
 
       <ConfidenceSummary table={t} />
 
-      <div className="grid md:grid-cols-2 gap-5">
+      <div className="space-y-5">
         <div>
           <p className="text-xs uppercase tracking-wider text-muted mb-2 text-center">
             Cropped image
@@ -266,7 +266,7 @@ export default function ImageResults({ jobId, tables }: Props) {
             className="rounded-lg border border-border max-h-[28rem] w-full object-contain bg-input"
           />
         </div>
-        <div>
+        <div className="w-full">
           <div className="flex items-center justify-between mb-2 gap-2">
             <p className="text-xs uppercase tracking-wider text-muted text-center flex-1">
               Recognized data

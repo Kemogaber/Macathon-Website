@@ -78,11 +78,37 @@ export function parseSegments(content: string): Segment[] {
 // ---------------------------------------------------------------------------
 const PALETTE = ["#00d4ff", "#7c3aed", "#10b981", "#f59e0b", "#ef4444", "#3b82f6"];
 
+function coerceNumber(v: unknown): number | unknown {
+  if (typeof v === "number") return v;
+  if (typeof v !== "string") return v;
+  // Strip thousands separators, %, currency symbols, surrounding whitespace.
+  const cleaned = v.replace(/[,\s$£€¥%]/g, "");
+  if (cleaned === "" || cleaned === "-") return v;
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : v;
+}
+
 export function ChartBlock({ spec }: { spec: ChartSpec | null }) {
   if (!spec || !spec.data || !Array.isArray(spec.data) || spec.data.length === 0) {
     return <BadBlock label="chart" />;
   }
   const ys = Array.isArray(spec.y) ? spec.y : [spec.y];
+  // Recharts silently drops non-numeric y values (pie wedges vanish, bars show
+  // empty). Coerce strings like "1,234", "50%", "$12" before passing in.
+  const cleanData = spec.data.map((row) => {
+    const out: Record<string, unknown> = { ...row };
+    for (const k of ys) out[k] = coerceNumber(row[k]);
+    return out;
+  });
+  // Pie needs at least one positive numeric slice or it renders empty.
+  if (spec.type === "pie") {
+    const k = ys[0];
+    const hasNumeric = cleanData.some(
+      (r) => typeof r[k] === "number" && (r[k] as number) > 0,
+    );
+    if (!hasNumeric) return <BadBlock label="chart" />;
+  }
+  const cleanSpec = { ...spec, data: cleanData };
 
   return (
     <div className="my-2 rounded-lg border border-border bg-input p-2">
@@ -91,7 +117,7 @@ export function ChartBlock({ spec }: { spec: ChartSpec | null }) {
       )}
       <div className="w-full h-56">
         <ResponsiveContainer width="100%" height="100%">
-          {renderChart(spec.type, spec, ys) as React.ReactElement}
+          {renderChart(cleanSpec.type, cleanSpec, ys) as React.ReactElement}
         </ResponsiveContainer>
       </div>
     </div>
