@@ -161,7 +161,7 @@ class TSR:
         with torch.no_grad():
             pixel_values = self._preprocess_image(image)
             outputs = self.model(pixel_values=pixel_values)
-            _, labels, boxes = self._post_process_bboxes(
+            scores, labels, boxes = self._post_process_bboxes(
                 out_logits=outputs.logits[0],
                 out_bbox=outputs.pred_boxes[0],
                 target_size=(w, h),
@@ -169,27 +169,27 @@ class TSR:
             )
 
         rows = sorted(
-            [box for label, box in zip(labels, boxes) if label == 2],
-            key=lambda b: b[1],
+            [(box, s) for s, label, box in zip(scores, labels, boxes) if label == 2],
+            key=lambda bs: bs[0][1],
         )
         columns = sorted(
-            [box for label, box in zip(labels, boxes) if label == 1],
-            key=lambda b: b[0],
+            [(box, s) for s, label, box in zip(scores, labels, boxes) if label == 1],
+            key=lambda bs: bs[0][0],
         )
-        spanning_cells = [
-            box for label, box in zip(labels, boxes) if label in (4, 5)
+        spanning = [
+            (box, s) for s, label, box in zip(scores, labels, boxes) if label in (4, 5)
         ]
 
         final_cells: list[dict] = []
-        spanning_intersections: list[list[tuple[int, int]]] = [[] for _ in spanning_cells]
+        spanning_intersections: list[list[tuple[int, int]]] = [[] for _ in spanning]
 
-        for r_idx, row in enumerate(rows):
-            for c_idx, col in enumerate(columns):
+        for r_idx, (row, r_score) in enumerate(rows):
+            for c_idx, (col, c_score) in enumerate(columns):
                 inter = self._intersection(row, col)
                 if inter is None:
                     continue
                 assigned = False
-                for span_idx, span in enumerate(spanning_cells):
+                for span_idx, (span, _) in enumerate(spanning):
                     if self._overlap_ratio(inter, span) > 0.5:
                         spanning_intersections[span_idx].append((r_idx, c_idx))
                         assigned = True
@@ -201,9 +201,10 @@ class TSR:
                         "col": c_idx,
                         "rowspan": 1,
                         "colspan": 1,
+                        "tsr_score": float((r_score + c_score) / 2.0),
                     })
 
-        for span_idx, span in enumerate(spanning_cells):
+        for span_idx, (span, span_score) in enumerate(spanning):
             inters = spanning_intersections[span_idx]
             if inters:
                 rs = [r for r, _ in inters]
@@ -214,6 +215,7 @@ class TSR:
                     "col": min(cs),
                     "rowspan": max(rs) - min(rs) + 1,
                     "colspan": max(cs) - min(cs) + 1,
+                    "tsr_score": float(span_score),
                 })
 
         return final_cells
@@ -269,14 +271,20 @@ class DetailedOCR:
 
             texts = getattr(res, "rec_texts", None)
             polys = getattr(res, "rec_polys", None)
-            if (texts is None or polys is None) and isinstance(res, dict):
+            scores = getattr(res, "rec_scores", None)
+            if isinstance(res, dict):
                 texts = texts if texts is not None else res.get("rec_texts")
                 polys = polys if polys is not None else res.get("rec_polys")
+                scores = scores if scores is not None else res.get("rec_scores")
 
             if texts is not None and polys is not None:
-                for text, poly in zip(texts, polys):
+                if scores is None:
+                    scores = [1.0] * len(texts)
+                for text, poly, sc in zip(texts, polys, scores):
                     if text and poly is not None:
-                        parsed.append(self._poly_to_entry(text, poly, scale_x, scale_y))
+                        parsed.append(
+                            self._poly_to_entry(text, poly, scale_x, scale_y, float(sc))
+                        )
                 continue
 
             if isinstance(res, list):
@@ -286,15 +294,16 @@ class DetailedOCR:
                         text_conf = line[1]
                         if isinstance(text_conf, (tuple, list)):
                             text = text_conf[0]
+                            sc = float(text_conf[1]) if len(text_conf) > 1 else 1.0
                             if text and poly is not None:
                                 parsed.append(
-                                    self._poly_to_entry(text, poly, scale_x, scale_y)
+                                    self._poly_to_entry(text, poly, scale_x, scale_y, sc)
                                 )
 
         return parsed
 
     @staticmethod
-    def _poly_to_entry(text, poly, scale_x, scale_y) -> dict:
+    def _poly_to_entry(text, poly, scale_x, scale_y, score=1.0) -> dict:
         poly_np = np.array(poly).astype(float)
         x_coords = poly_np[:, 0]
         y_coords = poly_np[:, 1]
@@ -302,7 +311,7 @@ class DetailedOCR:
         y1 = float(np.min(y_coords) / scale_y)
         x2 = float(np.max(x_coords) / scale_x)
         y2 = float(np.max(y_coords) / scale_y)
-        return {"text": text, "bbox_xyxy": [x1, y1, x2, y2]}
+        return {"text": text, "bbox_xyxy": [x1, y1, x2, y2], "score": float(score)}
 
 
 # ---------------------------------------------------------------------------
@@ -316,7 +325,7 @@ def _calculate_1d_overlap(min1, max1, min2, max2) -> float:
 def refine_table_structure(tsr_cells: list[dict], ocr_detections: list[dict]) -> list[dict]:
     refined: list[dict] = []
     working = copy.deepcopy(tsr_cells)
-    cell_text_map: dict[int, list[tuple[str, list[float]]]] = {
+    cell_text_map: dict[int, list[tuple[str, list[float], float]]] = {
         i: [] for i in range(len(working))
     }
     unassigned: list[dict] = []
@@ -339,7 +348,9 @@ def refine_table_structure(tsr_cells: list[dict], ocr_detections: list[dict]) ->
                 best_idx = i
 
         if best_idx >= 0:
-            cell_text_map[best_idx].append((det["text"], ocr_box))
+            cell_text_map[best_idx].append(
+                (det["text"], ocr_box, float(det.get("score", 1.0)))
+            )
         else:
             unassigned.append(det)
 
@@ -364,7 +375,12 @@ def refine_table_structure(tsr_cells: list[dict], ocr_detections: list[dict]) ->
     for i, cell in enumerate(working):
         assigned = cell_text_map[i]
         assigned.sort(key=lambda x: (x[1][1], x[1][0]))
-        cell["text"] = " ".join(t for t, _ in assigned).strip()
+        cell["text"] = " ".join(item[0] for item in assigned).strip()
+        if assigned and any(len(item) >= 3 for item in assigned):
+            ocr_scores = [item[2] for item in assigned if len(item) >= 3]
+            cell["ocr_score"] = float(sum(ocr_scores) / len(ocr_scores)) if ocr_scores else 0.0
+        else:
+            cell["ocr_score"] = 0.0 if assigned else None
         refined.append(cell)
 
     for det in unassigned:
@@ -402,6 +418,8 @@ def refine_table_structure(tsr_cells: list[dict], ocr_detections: list[dict]) ->
             "rowspan": max(matched_rows) - target_row + 1,
             "colspan": max(matched_cols) - target_col + 1,
             "text": det["text"],
+            "tsr_score": None,
+            "ocr_score": float(det.get("score", 1.0)),
         })
 
     return refined
@@ -536,14 +554,24 @@ class TableExtractionPipeline:
                 "html": "<p>No table data extracted.</p>",
                 "csv": "",
                 "crop_bgr": crop,
+                "tsr_confidence": 0.0,
+                "ocr_confidence": 0.0,
             }
         ocr = self.ocr.predict(crop)
         refined = refine_table_structure(cells, ocr)
+
+        tsr_scores = [c["tsr_score"] for c in refined if c.get("tsr_score") is not None]
+        ocr_scores = [c["ocr_score"] for c in refined if c.get("ocr_score")]
+        tsr_conf = float(sum(tsr_scores) / len(tsr_scores)) if tsr_scores else 0.0
+        ocr_conf = float(sum(ocr_scores) / len(ocr_scores)) if ocr_scores else 0.0
+
         return {
             "cells": refined,
             "html": refined_to_html(refined),
             "csv": refined_to_csv(refined),
             "crop_bgr": crop,
+            "tsr_confidence": round(tsr_conf, 3),
+            "ocr_confidence": round(ocr_conf, 3),
         }
 
     # ---------- legacy one-shot (kept for /api/extract back-compat) ----------

@@ -40,6 +40,10 @@ class TableResult:
     html: str
     csv: str
     cell_count: int
+    tsr_confidence: float = 0.0
+    ocr_confidence: float = 0.0
+    detection_score: float = 0.0
+    cells: list[dict] = field(default_factory=list)
 
 
 @dataclass
@@ -55,6 +59,55 @@ class Job:
 
 _JOBS: dict[str, Job] = {}
 _LOCK = threading.Lock()
+
+
+# Lightweight rolling metrics for the health dashboard.
+_METRICS: dict = {
+    "started_at": time.time(),
+    "jobs_created": 0,
+    "jobs_succeeded": 0,
+    "jobs_failed": 0,
+    "recent": [],  # list of {ts, status, duration_ms, table_count, error}
+}
+_METRICS_MAX = 200
+
+
+def _record_metric(entry: dict) -> None:
+    with _LOCK:
+        _METRICS["recent"].append(entry)
+        if len(_METRICS["recent"]) > _METRICS_MAX:
+            _METRICS["recent"] = _METRICS["recent"][-_METRICS_MAX:]
+
+
+def get_metrics() -> dict:
+    with _LOCK:
+        recent = list(_METRICS["recent"])
+    durations = [r["duration_ms"] for r in recent if r.get("duration_ms")]
+    durations_sorted = sorted(durations)
+
+    def percentile(p: float) -> float:
+        if not durations_sorted:
+            return 0.0
+        k = max(0, min(len(durations_sorted) - 1, int(round(p * (len(durations_sorted) - 1)))))
+        return float(durations_sorted[k])
+
+    succeeded = sum(1 for r in recent if r["status"] == "done")
+    failed = sum(1 for r in recent if r["status"] == "error")
+    total = succeeded + failed
+    return {
+        "uptime_s": int(time.time() - _METRICS["started_at"]),
+        "jobs_created": _METRICS["jobs_created"],
+        "jobs_succeeded": _METRICS["jobs_succeeded"],
+        "jobs_failed": _METRICS["jobs_failed"],
+        "active_jobs": len(_JOBS),
+        "success_rate": (succeeded / total) if total else 1.0,
+        "latency_ms": {
+            "p50": percentile(0.5),
+            "p95": percentile(0.95),
+            "avg": float(sum(durations) / len(durations)) if durations else 0.0,
+        },
+        "recent": recent[-50:],
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -144,6 +197,7 @@ def create_job(file_bytes: bytes, content_type: str) -> Job:
     job = Job(id=job_id, created_at=time.time(), pages=pages_meta)
     with _LOCK:
         _JOBS[job_id] = job
+        _METRICS["jobs_created"] += 1
     return job
 
 
@@ -159,6 +213,7 @@ def run_recognize(job_id: str, confirmed: list[dict]) -> None:
     job.progress = 0.0
     job.tables = []
     job.error = None
+    started = time.monotonic()
 
     pipeline = get_pipeline()
     out_dir = _job_dir(job_id)
@@ -183,20 +238,57 @@ def run_recognize(job_id: str, confirmed: list[dict]) -> None:
             cv2.imwrite(str(crop_path), r["crop_bgr"])
             csv_path.write_text(r["csv"], encoding="utf-8")
 
+            detection_score = float(item.get("score", 0.0))
+            cells_serialized = [
+                {
+                    "row": c["row"],
+                    "col": c["col"],
+                    "rowspan": c.get("rowspan", 1),
+                    "colspan": c.get("colspan", 1),
+                    "text": c.get("text", "") or "",
+                    "tsr_score": c.get("tsr_score"),
+                    "ocr_score": c.get("ocr_score"),
+                }
+                for c in r["cells"]
+            ]
             job.tables.append(TableResult(
                 index=idx,
                 page_index=page_index,
                 html=r["html"],
                 csv=r["csv"],
                 cell_count=len(r["cells"]),
+                tsr_confidence=r.get("tsr_confidence", 0.0),
+                ocr_confidence=r.get("ocr_confidence", 0.0),
+                detection_score=detection_score,
+                cells=cells_serialized,
             ))
             job.progress = idx / total
 
         job.status = "done"
         job.progress = 1.0
+        with _LOCK:
+            _METRICS["jobs_succeeded"] += 1
+        _record_metric({
+            "ts": time.time(),
+            "job_id": job_id,
+            "status": "done",
+            "duration_ms": int((time.monotonic() - started) * 1000),
+            "table_count": len(job.tables),
+            "error": None,
+        })
     except Exception as e:
         job.status = "error"
         job.error = str(e)
+        with _LOCK:
+            _METRICS["jobs_failed"] += 1
+        _record_metric({
+            "ts": time.time(),
+            "job_id": job_id,
+            "status": "error",
+            "duration_ms": int((time.monotonic() - started) * 1000),
+            "table_count": 0,
+            "error": str(e),
+        })
 
 
 # ---------------------------------------------------------------------------

@@ -44,6 +44,7 @@ class ExtractionResponse(BaseModel):
 class ConfirmedQuad(BaseModel):
     page_index: int
     quad: list[list[float]]
+    score: float = 0.0
 
 
 class RecognizeRequest(BaseModel):
@@ -54,6 +55,11 @@ class RecognizeRequest(BaseModel):
 @api.get("/api/health")
 def health():
     return {"status": "ok", "model": "yolov8 + table-transformer + paddleocr"}
+
+
+@api.get("/api/metrics")
+def metrics():
+    return jobsvc.get_metrics()
 
 
 @api.get("/")
@@ -137,6 +143,10 @@ def status(job_id: str):
                 "html": t.html,
                 "csv": t.csv,
                 "cell_count": t.cell_count,
+                "detection_score": t.detection_score,
+                "tsr_confidence": t.tsr_confidence,
+                "ocr_confidence": t.ocr_confidence,
+                "cells": t.cells,
             }
             for t in job.tables
         ],

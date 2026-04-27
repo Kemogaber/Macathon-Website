@@ -46,12 +46,26 @@ export interface JobInit {
   pages: PageMeta[];
 }
 
+export interface CellData {
+  row: number;
+  col: number;
+  rowspan: number;
+  colspan: number;
+  text: string;
+  tsr_score: number | null;
+  ocr_score: number | null;
+}
+
 export interface TableData {
   index: number;
   page_index: number;
   html: string;
   csv: string;
   cell_count: number;
+  detection_score?: number;
+  tsr_confidence?: number;
+  ocr_confidence?: number;
+  cells?: CellData[];
 }
 
 export interface JobStatus {
@@ -64,6 +78,7 @@ export interface JobStatus {
 export interface ConfirmedQuad {
   page_index: number;
   quad: Quad;
+  score?: number;
 }
 
 export async function createJob(file: File): Promise<JobInit> {
@@ -107,5 +122,32 @@ export async function startRecognize(
 export async function getJobStatus(jobId: string): Promise<JobStatus> {
   const res = await fetch(`${API_URL}/api/jobs/${jobId}/status`);
   if (!res.ok) throw new Error(`Status check failed (${res.status})`);
+  return res.json();
+}
+
+// ---------- metrics ----------
+export interface MetricEntry {
+  ts: number;
+  job_id: string;
+  status: "done" | "error";
+  duration_ms: number;
+  table_count: number;
+  error: string | null;
+}
+
+export interface MetricsData {
+  uptime_s: number;
+  jobs_created: number;
+  jobs_succeeded: number;
+  jobs_failed: number;
+  active_jobs: number;
+  success_rate: number;
+  latency_ms: { p50: number; p95: number; avg: number };
+  recent: MetricEntry[];
+}
+
+export async function getMetrics(): Promise<MetricsData> {
+  const res = await fetch(`${API_URL}/api/metrics`);
+  if (!res.ok) throw new Error(`Metrics fetch failed (${res.status})`);
   return res.json();
 }
