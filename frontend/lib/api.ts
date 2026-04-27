@@ -19,7 +19,19 @@ export async function extractTable(file: File): Promise<ExtractionResult> {
   return res.json();
 }
 
-export async function checkHealth(): Promise<{ status: string; model: string }> {
+export interface HealthInfo {
+  status: string;
+  model?: string;
+  uptime_s?: number;
+  active_jobs?: number;
+  cpu_percent?: number;
+  ram_percent?: number;
+  ram_used_mb?: number;
+  ram_total_mb?: number;
+  process_rss_mb?: number;
+}
+
+export async function checkHealth(): Promise<HealthInfo> {
   const res = await fetch(`${API_URL}/api/health`);
   return res.json();
 }

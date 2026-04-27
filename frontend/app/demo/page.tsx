@@ -1,5 +1,6 @@
 "use client";
 
+import BackendStatusPill from "@/components/BackendStatusPill";
 import UploadZone from "@/components/UploadZone";
 import QuadEditor, {
   quadToRect,
@@ -353,6 +354,9 @@ export default function DemoPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-12">
+      <div className="flex justify-end mb-2">
+        <BackendStatusPill />
+      </div>
       <div className="text-center mb-10">
         <span className="inline-block px-3 py-1 rounded-full border border-cyan/20 bg-[rgba(0,212,255,0.1)] text-cyan text-xs font-mono mb-4">
           Live Demo
