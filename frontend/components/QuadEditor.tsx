@@ -27,12 +27,13 @@ const ROT_OFFSET = 36;          // pixel distance of rotation handle above top e
 const STROKE = "#00d4ff";
 const STROKE_INACTIVE = "rgba(124,58,237,0.55)";
 const FRAME_MAX_VH = 80;        // viewport-height cap for the frame
-const ZOOM_STEPS = [0.5, 0.75, 1, 1.5, 2];
+const ZOOM_STEPS = [0.25, 0.35, 0.5, 0.75, 1, 1.5, 2, 3];
 const MIN_SIZE = 12;            // min rect width/height in image pixels
 
 type DragMode =
   | { kind: "edge"; ri: number; edge: "top" | "right" | "bottom" | "left" }
-  | { kind: "rotate"; ri: number };
+  | { kind: "rotate"; ri: number }
+  | { kind: "pan"; startX: number; startY: number; startSL: number; startST: number };
 
 export function quadToRect(q: Quad): RectQuad {
   // Best-effort: assume the quad is (near-) axis-aligned (backend yields bboxes).
@@ -145,6 +146,13 @@ export default function QuadEditor({
   const onPointerMove = useCallback(
     (e: PointerEvent) => {
       if (!drag) return;
+      if (drag.kind === "pan") {
+        const frame = frameRef.current;
+        if (!frame) return;
+        frame.scrollLeft = drag.startSL - (e.clientX - drag.startX);
+        frame.scrollTop = drag.startST - (e.clientY - drag.startY);
+        return;
+      }
       const [px, py] = clientToImage(e.clientX, e.clientY);
       const r = rects[drag.ri];
       if (!r) return;
@@ -261,12 +269,29 @@ export default function QuadEditor({
 
       <div
         ref={frameRef}
-        className="relative bg-black/40 rounded-xl overflow-auto"
-        style={{ maxHeight: `${FRAME_MAX_VH}vh` }}
+        className="relative bg-black/40 rounded-xl overflow-auto flex items-center justify-center"
+        style={{ maxHeight: `${FRAME_MAX_VH}vh`, minHeight: 320 }}
       >
         <div
           className="relative inline-block"
-          style={{ width: renderedW, height: renderedH }}
+          style={{
+            width: renderedW,
+            height: renderedH,
+            cursor: drag?.kind === "pan" ? "grabbing" : "grab",
+          }}
+          onPointerDown={(e) => {
+            if ((e.target as Element).tagName !== "IMG") return;
+            const frame = frameRef.current;
+            if (!frame) return;
+            (e.target as Element).setPointerCapture?.(e.pointerId);
+            setDrag({
+              kind: "pan",
+              startX: e.clientX,
+              startY: e.clientY,
+              startSL: frame.scrollLeft,
+              startST: frame.scrollTop,
+            });
+          }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img

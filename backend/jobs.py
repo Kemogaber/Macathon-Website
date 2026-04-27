@@ -183,26 +183,23 @@ def run_recognize(job_id: str, confirmed: list[dict]) -> None:
     out_dir = _job_dir(job_id)
     total = max(1, len(confirmed))
 
-    try:
-        # Cache page images so we don't re-read for repeated page_index
-        page_cache: dict[int, np.ndarray] = {}
-        for offset, item in enumerate(confirmed, start=1):
-            idx = start_index + offset
+    page_cache: dict[int, np.ndarray] = {}
+    failures: list[str] = []
+    for offset, item in enumerate(confirmed, start=1):
+        idx = start_index + offset
+        try:
             page_index = int(item["page_index"])
             quad = item["quad"]
-
             if page_index not in page_cache:
                 page_cache[page_index] = cv2.imread(
                     str(out_dir / job.pages[page_index]["filename"])
                 )
             bgr = page_cache[page_index]
-
             r = pipeline.recognize_quad(bgr, quad)
             crop_path = out_dir / f"table_{idx}.png"
             csv_path = out_dir / f"table_{idx}.csv"
             cv2.imwrite(str(crop_path), r["crop_bgr"])
             csv_path.write_text(r["csv"], encoding="utf-8")
-
             job.tables.append(TableResult(
                 index=idx,
                 page_index=page_index,
@@ -210,13 +207,13 @@ def run_recognize(job_id: str, confirmed: list[dict]) -> None:
                 csv=r["csv"],
                 cell_count=len(r["cells"]),
             ))
-            job.progress = offset / total
+        except Exception as e:
+            failures.append(f"page {item.get('page_index')} table {idx}: {e}")
+        job.progress = offset / total
 
-        job.status = "done"
-        job.progress = 1.0
-    except Exception as e:
-        job.status = "error"
-        job.error = str(e)
+    job.status = "done"
+    job.progress = 1.0
+    job.error = "; ".join(failures) if failures else None
 
 
 # ---------------------------------------------------------------------------
@@ -231,11 +228,8 @@ def build_zip(job_id: str) -> bytes:
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         for t in job.tables:
             csv_path = out_dir / f"table_{t.index}.csv"
-            png_path = out_dir / f"table_{t.index}.png"
             if csv_path.exists():
                 zf.write(csv_path, arcname=f"table_{t.index}.csv")
-            if png_path.exists():
-                zf.write(png_path, arcname=f"table_{t.index}.png")
     return buf.getvalue()
 
 

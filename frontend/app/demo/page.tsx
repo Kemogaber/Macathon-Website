@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import UploadZone from "@/components/UploadZone";
 import QuadEditor, {
   quadToRect,
@@ -16,33 +15,35 @@ import {
   pageImageUrl,
   startRecognize,
   type ConfirmedQuad,
-  type JobInit,
   type JobStatus,
-  type TableData,
 } from "@/lib/api";
-
-type Step = "upload" | "review" | "error";
-
-interface PerPageState {
-  rects: RectQuad[];
-  activeRect: number;
-  detected: boolean;
-  recognized: boolean; // page has been confirmed (TSR+OCR done)
-}
+import { useDemoStore, type PerPageState, type Step } from "@/lib/demoStore";
+import { useEffect, useState } from "react";
 
 export default function DemoPage() {
-  const [step, setStep] = useState<Step>("upload");
-  const [file, setFile] = useState<File | null>(null);
-  const [errorMsg, setErrorMsg] = useState("");
+  const {
+    step,
+    file,
+    job,
+    pageStates,
+    currentPage,
+    tables,
+    errorMsg,
+    setStep,
+    setFile,
+    setJob,
+    setPageStates,
+    setCurrentPage,
+    setTables,
+    setErrorMsg,
+    reset,
+    pollRef,
+  } = useDemoStore();
 
-  const [job, setJob] = useState<JobInit | null>(null);
-  const [pageStates, setPageStates] = useState<PerPageState[]>([]);
-  const [currentPage, setCurrentPage] = useState(0);
-
-  const [busy, setBusy] = useState<null | "upload" | "detect-one" | "detect-all" | "confirm-one" | "confirm-all">(null);
+  const [busy, setBusy] = useState<
+    null | "upload" | "detect-one" | "detect-all" | "confirm-one" | "confirm-all"
+  >(null);
   const [confirmProgress, setConfirmProgress] = useState(0);
-  const [tables, setTables] = useState<TableData[]>([]);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ---------- step 1 → 2 : upload only (no auto-detect) ----------
   async function handleUpload() {
@@ -71,7 +72,6 @@ export default function DemoPage() {
     }
   }
 
-  // ---------- detection ----------
   async function runDetection(scope: "one" | "all") {
     if (!job) return;
     setErrorMsg("");
@@ -83,7 +83,7 @@ export default function DemoPage() {
         const next = prev.map((p) => ({ ...p }));
         for (const rp of res.pages) {
           if (!rp.detected) continue;
-          if (next[rp.index].recognized) continue; // don't overwrite confirmed pages
+          if (next[rp.index].recognized) continue;
           next[rp.index].detected = true;
           next[rp.index].rects = rp.detections.map((d) => quadToRect(d.quad));
           next[rp.index].activeRect = 0;
@@ -97,7 +97,6 @@ export default function DemoPage() {
     }
   }
 
-  // ---------- box editing ----------
   function setRect(pageIdx: number, ri: number, rect: RectQuad) {
     setPageStates((prev) => {
       const next = [...prev];
@@ -149,7 +148,6 @@ export default function DemoPage() {
     });
   }
 
-  // ---------- confirmation (recognize) ----------
   function buildConfirmedFrom(pages: number[]): ConfirmedQuad[] {
     const out: ConfirmedQuad[] = [];
     for (const idx of pages) {
@@ -204,6 +202,7 @@ export default function DemoPage() {
               for (const i of targetPages) next[i].recognized = true;
               return next;
             });
+            if (s.error) setErrorMsg(`Some tables failed: ${s.error}`);
             setBusy(null);
           } else if (s.status === "error") {
             if (pollRef.current) clearInterval(pollRef.current);
@@ -224,24 +223,12 @@ export default function DemoPage() {
 
   useEffect(
     () => () => {
-      if (pollRef.current) clearInterval(pollRef.current);
+      // Don't clear on unmount — user may navigate to another tab and back.
+      // The interval is owned by the provider's pollRef and cleaned on reset.
     },
     [],
   );
 
-  function reset() {
-    setStep("upload");
-    setFile(null);
-    setJob(null);
-    setPageStates([]);
-    setCurrentPage(0);
-    setTables([]);
-    setBusy(null);
-    setConfirmProgress(0);
-    setErrorMsg("");
-  }
-
-  // ---------- render ----------
   const ps = pageStates[currentPage];
   const detectedCount = pageStates.filter((p) => p.detected).length;
   const recognizedCount = pageStates.filter((p) => p.recognized).length;
@@ -281,86 +268,81 @@ export default function DemoPage() {
 
       {step === "review" && job && ps && (
         <div className="space-y-5">
-          {/* page nav + global actions */}
-          <div className="glass rounded-2xl p-5 flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setCurrentPage((i) => Math.max(0, i - 1))}
-                disabled={currentPage === 0}
-                className="px-3 py-1.5 rounded-lg border border-white/10 hover:border-[#00d4ff]/40 disabled:opacity-30 text-sm"
-              >
-                ← Prev
-              </button>
-              <span className="font-mono text-sm text-[#9ca3af]">
-                Image {currentPage + 1} / {job.pages.length}
-              </span>
-              <button
-                onClick={() =>
-                  setCurrentPage((i) => Math.min(job.pages.length - 1, i + 1))
-                }
-                disabled={currentPage === job.pages.length - 1}
-                className="px-3 py-1.5 rounded-lg border border-white/10 hover:border-[#00d4ff]/40 disabled:opacity-30 text-sm"
-              >
-                Next →
-              </button>
-              <PageStatusBadge state={ps} />
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs text-[#6b7280] font-mono">
-                {detectedCount} parsed · {recognizedCount} confirmed
-              </span>
-            </div>
+          <div className="glass rounded-2xl p-5 flex items-center justify-center gap-4 flex-wrap">
+            <button
+              onClick={() => setCurrentPage((i: number) => Math.max(0, i - 1))}
+              disabled={currentPage === 0}
+              className="px-3 py-1.5 rounded-lg border border-[#00d4ff]/30 bg-[rgba(0,212,255,0.06)] hover:bg-[rgba(0,212,255,0.14)] hover:border-[#00d4ff] disabled:opacity-30 text-sm text-[#00d4ff]"
+            >
+              ← Prev
+            </button>
+            <span className="font-mono text-sm text-white text-center min-w-[10rem]">
+              Image {currentPage + 1} / {job.pages.length}
+            </span>
+            <button
+              onClick={() =>
+                setCurrentPage((i: number) =>
+                  Math.min(job.pages.length - 1, i + 1),
+                )
+              }
+              disabled={currentPage === job.pages.length - 1}
+              className="px-3 py-1.5 rounded-lg border border-[#00d4ff]/30 bg-[rgba(0,212,255,0.06)] hover:bg-[rgba(0,212,255,0.14)] hover:border-[#00d4ff] disabled:opacity-30 text-sm text-[#00d4ff]"
+            >
+              Next →
+            </button>
+            <PageStatusBadge state={ps} />
+            <span className="text-xs text-[#6b7280] font-mono ml-4">
+              {detectedCount} parsed · {recognizedCount} confirmed
+            </span>
           </div>
 
-          {/* parse buttons */}
-          <div className="glass rounded-2xl p-4 flex items-center gap-2 flex-wrap">
-            <span className="text-xs uppercase tracking-wider text-[#6b7280] mr-2">
+          {/* Step 1 — detect */}
+          <div className="glass rounded-2xl p-4 flex items-center justify-center gap-3 flex-wrap">
+            <span className="text-xs uppercase tracking-wider text-[#9ca3af]">
               Step 1 — Detect tables
             </span>
             <button
               onClick={() => runDetection("one")}
               disabled={busy !== null || ps.recognized}
-              className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:border-[#00d4ff]/40 text-sm disabled:opacity-40"
+              className="px-4 py-2 rounded-lg bg-sky-500/15 border border-sky-400/40 hover:bg-sky-500/25 text-sky-100 text-sm font-bold disabled:opacity-40"
             >
               {busy === "detect-one" ? "Parsing…" : "Parse this image"}
             </button>
             <button
               onClick={() => runDetection("all")}
               disabled={busy !== null}
-              className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:border-[#00d4ff]/40 text-sm disabled:opacity-40"
+              className="px-4 py-2 rounded-lg bg-indigo-500/15 border border-indigo-400/40 hover:bg-indigo-500/25 text-indigo-100 text-sm font-bold disabled:opacity-40"
             >
               {busy === "detect-all" ? "Parsing all…" : "Parse all"}
             </button>
             {ps.detected && !ps.recognized && (
-              <span className="text-xs text-[#9ca3af] font-mono ml-2">
-                {ps.rects.length} box{ps.rects.length === 1 ? "" : "es"} on this image — adjust below.
+              <span className="text-xs text-[#9ca3af] font-mono">
+                {ps.rects.length} box{ps.rects.length === 1 ? "" : "es"} — adjust below.
               </span>
             )}
           </div>
 
           {/* editor */}
           <div className="glass rounded-2xl p-5">
-            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-              <p className="text-xs uppercase tracking-wider text-[#6b7280]">
+            <div className="flex items-center justify-center mb-3 flex-wrap gap-3">
+              <p className="text-xs uppercase tracking-wider text-[#6b7280] text-center">
                 {ps.recognized
                   ? "✓ Confirmed — locked. Use arrows to navigate."
                   : ps.detected
                     ? `Drag edges/rotate to fit. ${ps.rects.length} box(es).`
                     : "Not parsed yet — click “Parse this image” to detect tables."}
               </p>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => addRect(currentPage)}
-                  disabled={ps.recognized}
-                  className="px-3 py-1 rounded-lg border border-white/10 hover:border-[#00d4ff]/40 text-xs disabled:opacity-40"
-                >
-                  + Add box
-                </button>
-              </div>
+              <button
+                onClick={() => addRect(currentPage)}
+                disabled={ps.recognized}
+                className="px-3 py-1 rounded-lg border border-emerald-400/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-200 text-xs disabled:opacity-40"
+              >
+                + Add box
+              </button>
             </div>
 
             {ps.detected && (
-              <div className="flex flex-wrap gap-2 mb-4">
+              <div className="flex flex-wrap justify-center gap-2 mb-4">
                 {ps.rects.map((_, ri) => (
                   <span
                     key={ri}
@@ -389,7 +371,7 @@ export default function DemoPage() {
                 ))}
                 {ps.rects.length === 0 && (
                   <span className="text-xs text-[#6b7280] font-mono">
-                    No tables detected on this image. Use “+ Add box” if you want to draw one.
+                    No tables detected. Use “+ Add box” to draw one.
                   </span>
                 )}
               </div>
@@ -407,10 +389,10 @@ export default function DemoPage() {
             />
           </div>
 
-          {/* confirm buttons */}
-          <div className="glass rounded-2xl p-4 flex items-center gap-2 flex-wrap">
-            <span className="text-xs uppercase tracking-wider text-[#6b7280] mr-2">
-              Step 2 — Confirm (run TSR + OCR)
+          {/* Step 2 — confirm */}
+          <div className="glass rounded-2xl p-4 flex items-center justify-center gap-3 flex-wrap">
+            <span className="text-xs uppercase tracking-wider text-[#9ca3af]">
+              Step 2 — Confirm (TSR + OCR)
             </span>
             <button
               onClick={() => runConfirm("one")}
@@ -427,20 +409,17 @@ export default function DemoPage() {
             <button
               onClick={() => runConfirm("all")}
               disabled={busy !== null || confirmableCount === 0}
-              className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:border-[#00d4ff]/40 text-sm disabled:opacity-40"
+              className="px-4 py-2 rounded-lg bg-fuchsia-500/15 border border-fuchsia-400/40 hover:bg-fuchsia-500/25 text-fuchsia-100 text-sm font-bold disabled:opacity-40"
             >
               {busy === "confirm-all"
                 ? "Confirming all…"
                 : `Confirm all (${confirmableCount})`}
             </button>
             {(busy === "confirm-one" || busy === "confirm-all") && (
-              <span className="text-xs font-mono text-[#00d4ff] ml-2">
+              <span className="text-xs font-mono text-[#00d4ff]">
                 {Math.round(confirmProgress * 100)}%
               </span>
             )}
-            <span className="ml-auto text-xs text-[#6b7280] font-mono">
-              Already-confirmed pages are skipped.
-            </span>
           </div>
 
           <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -453,18 +432,20 @@ export default function DemoPage() {
             {tables.length > 0 && (
               <a
                 href={jobZipUrl(job.job_id)}
-                className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:border-[#00d4ff]/40 text-sm"
+                className="px-4 py-2 rounded-xl bg-amber-500/15 border border-amber-400/40 hover:bg-amber-500/25 text-amber-100 text-sm font-bold"
               >
-                Download all (ZIP)
+                Download all CSVs (ZIP)
               </a>
             )}
           </div>
 
-          {errorMsg && <p className="text-red-400 text-sm">{errorMsg}</p>}
+          {errorMsg && (
+            <p className="text-yellow-300 text-sm text-center">{errorMsg}</p>
+          )}
 
           {tables.length > 0 && (
             <div className="space-y-3">
-              <h2 className="text-lg font-bold text-white">
+              <h2 className="text-lg font-bold text-white text-center">
                 Results
                 <span className="ml-2 text-xs font-mono text-[#6b7280]">
                   {tables.length} table{tables.length === 1 ? "" : "s"} across{" "}
