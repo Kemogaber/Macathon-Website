@@ -1,36 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Frontend — Macathon Table Extractor
 
-## Getting Started
+Next.js 16 (App Router) UI for the table extractor. Users drop in an image or PDF, confirm the detected table regions, and get back editable HTML / CSV.
 
-First, run the development server:
+## Run it locally
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+The app expects the backend at `http://localhost:8000`. Override with `frontend/.env.local`:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
 
-## Learn More
+## Scripts
 
-To learn more about Next.js, take a look at the following resources:
+| Command | What it does |
+|---|---|
+| `npm run dev` | Dev server with hot reload |
+| `npm run build` | Production build |
+| `npm run start` | Serve the production build |
+| `npm run lint` | ESLint |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Layout
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+app/
+  page.tsx          Landing page
+  demo/             Upload, detect, edit, download flow
+  dashboard/        Job dashboard
+  how-it-works/     Explainer page
+  about/            About page
+  layout.tsx        Root layout, fonts, theme
+  globals.css       Tailwind v4 theme + custom utilities
 
-## Deploy on Vercel
+components/         UploadZone, EditableTable, QuadEditor, …
+lib/
+  api.ts            Backend fetch wrappers
+  demoStore.tsx     Client-side demo state
+  toast.tsx         Toast notifications
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Styling
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Tailwind v4 — config is **CSS-only** in `app/globals.css` via `@theme inline`. There is no `tailwind.config.ts`. Custom utilities defined there: `glass`, `gradient-border`, `glow-cyan`, `gradient-text`, `grid-bg`.
+
+Design tokens:
+
+- Background `#0a0b0f`
+- Accent (cyan) `#00d4ff`
+- Secondary (purple) `#7c3aed`
+- Font: Inter via `next/font/google`
+
+## Talking to the backend
+
+All HTTP calls go through `lib/api.ts`. The flow:
+
+1. `POST /api/jobs` — upload files, get a `job_id`
+2. `POST /api/jobs/{id}/detect` — run table detection
+3. User reviews / edits quads in `QuadEditor`
+4. `POST /api/jobs/{id}/recognize` — run structure + OCR
+5. Poll `GET /api/jobs/{id}/status` until `done`
+6. Download via `GET /api/jobs/{id}/download` (zip) or `GET /api/jobs/{id}/csv`
+
+## Deploying
+
+Set `NEXT_PUBLIC_API_URL` to your backend URL in the Vercel project settings, then deploy as normal. `vercel.json` is checked in.
+
+## Heads-up: Next.js version
+
+This is **Next.js 16**. Some APIs and conventions differ from older training data — when in doubt, check `node_modules/next/dist/docs/` before reaching for a pattern from memory.
