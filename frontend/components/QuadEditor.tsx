@@ -96,7 +96,7 @@ function rotationHandlePos(r: RectQuad, scale: number) {
   return [r.cx + lx * c - ly * s, r.cy + lx * s + ly * c] as [number, number];
 }
 
-type Tool = "pan" | "zoom-in" | "zoom-out";
+type Tool = "none" | "zoom-in" | "zoom-out";
 
 export default function QuadEditor({
   imageUrl,
@@ -113,7 +113,8 @@ export default function QuadEditor({
   const [zoom, setZoom] = useState<number | "fit">("fit");
   const [fitScale, setFitScale] = useState(1);
   const [drag, setDrag] = useState<DragMode | null>(null);
-  const [tool, setTool] = useState<Tool>("pan");
+  const [tool, setTool] = useState<Tool>("none");
+  const lastWheelRef = useRef(0);
   const [imgLoaded, setImgLoaded] = useState(false);
 
   // reset loaded flag when image URL changes; if already cached, flip true immediately.
@@ -162,6 +163,8 @@ export default function QuadEditor({
   );
 
   // Wheel-to-zoom on the frame (non-passive so we can preventDefault).
+  // Throttle to one step per gesture — wheel events fire many times per scroll,
+  // and we don't want a single wheel push to leap several zoom steps.
   useEffect(() => {
     const frame = frameRef.current;
     if (!frame) return;
@@ -169,6 +172,9 @@ export default function QuadEditor({
       const target = e.target as Element | null;
       if (!target || target.tagName !== "IMG") return;
       e.preventDefault();
+      const now = performance.now();
+      if (now - lastWheelRef.current < 250) return;
+      lastWheelRef.current = now;
       zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1 : -1);
     }
     frame.addEventListener("wheel", onWheel, { passive: false });
@@ -283,11 +289,11 @@ export default function QuadEditor({
   const imgCursor =
     drag?.kind === "pan"
       ? "grabbing"
-      : tool === "pan"
-        ? "grab"
-        : tool === "zoom-in"
-          ? "zoom-in"
-          : "zoom-out";
+      : tool === "zoom-in"
+        ? "zoom-in"
+        : tool === "zoom-out"
+          ? "zoom-out"
+          : "grab";
 
   return (
     <div className="w-full">
@@ -295,21 +301,7 @@ export default function QuadEditor({
         <div className="flex items-center gap-1">
           <button
             type="button"
-            onClick={() => setTool("pan")}
-            className={`w-9 h-9 rounded-lg border flex items-center justify-center transition-colors ${
-              tool === "pan"
-                ? "border-cyan bg-[rgba(0,212,255,0.12)] text-cyan"
-                : "border-border hover:border-cyan/40 text-muted-2"
-            }`}
-            title="Pan tool — click and drag the image to move"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2 L12 22 M2 12 L22 12 M12 2 L9 5 M12 2 L15 5 M12 22 L9 19 M12 22 L15 19 M2 12 L5 9 M2 12 L5 15 M22 12 L19 9 M22 12 L19 15" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            onClick={() => setTool("zoom-in")}
+            onClick={() => setTool((t) => (t === "zoom-in" ? "none" : "zoom-in"))}
             className={`w-9 h-9 rounded-lg border flex items-center justify-center transition-colors ${
               tool === "zoom-in"
                 ? "border-cyan bg-[rgba(0,212,255,0.12)] text-cyan"
@@ -324,7 +316,7 @@ export default function QuadEditor({
           </button>
           <button
             type="button"
-            onClick={() => setTool("zoom-out")}
+            onClick={() => setTool((t) => (t === "zoom-out" ? "none" : "zoom-out"))}
             className={`w-9 h-9 rounded-lg border flex items-center justify-center transition-colors ${
               tool === "zoom-out"
                 ? "border-cyan bg-[rgba(0,212,255,0.12)] text-cyan"
@@ -354,11 +346,11 @@ export default function QuadEditor({
           </span>
         </div>
         <span className="text-xs text-muted font-mono">
-          {tool === "pan"
-            ? "Pan: click + drag · drag edges to slide · top knob to rotate"
-            : tool === "zoom-in"
-              ? "Click a point to zoom in toward it"
-              : "Click a point to zoom out from it"}
+          {tool === "zoom-in"
+            ? "Click to zoom in · scroll wheel · drag to pan"
+            : tool === "zoom-out"
+              ? "Click to zoom out · scroll wheel · drag to pan"
+              : "Drag to pan · scroll wheel to zoom · drag edges to slide · top knob to rotate"}
         </span>
       </div>
 
@@ -398,7 +390,8 @@ export default function QuadEditor({
             zoomAt(e.clientX, e.clientY, tool === "zoom-in" ? -1 : 1);
           }}
           onPointerDown={(e) => {
-            if (tool !== "pan") return;
+            // Drag-to-pan is on whenever no zoom tool is selected.
+            if (tool !== "none") return;
             if ((e.target as Element).tagName !== "IMG") return;
             const frame = frameRef.current;
             if (!frame) return;

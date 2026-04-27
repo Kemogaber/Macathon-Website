@@ -38,6 +38,55 @@ function csvFromCells(cells: CellData[], fallback: string): string {
   return grid.map((row) => row.map(escapeCsv).join(",")).join("\n");
 }
 
+function escapeHtml(v: string): string {
+  return v
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function htmlFromCells(cells: CellData[], fallback: string): string {
+  if (!cells.length) return fallback;
+  const rows = Math.max(...cells.map((c) => c.row + (c.rowspan ?? 1)));
+  // Mark which cell starts at each (r,c); skip cells covered by spans.
+  const covered: boolean[][] = Array.from({ length: rows }, () => []);
+  const startMap = new Map<string, CellData>();
+  for (const c of cells) startMap.set(`${c.row},${c.col}`, c);
+
+  const out: string[] = ["<table>"];
+  for (let r = 0; r < rows; r++) {
+    out.push("<tr>");
+    let c = 0;
+    while (true) {
+      const cell = startMap.get(`${r},${c}`);
+      if (cell) {
+        const rs = cell.rowspan ?? 1;
+        const cs = cell.colspan ?? 1;
+        const attrs = [
+          rs > 1 ? ` rowspan="${rs}"` : "",
+          cs > 1 ? ` colspan="${cs}"` : "",
+        ].join("");
+        out.push(`<td${attrs}>${escapeHtml(cell.text ?? "")}</td>`);
+        for (let dr = 0; dr < rs; dr++) {
+          for (let dc = 0; dc < cs; dc++) {
+            covered[r + dr] = covered[r + dr] || [];
+            covered[r + dr][c + dc] = true;
+          }
+        }
+        c += cs;
+      } else if (covered[r]?.[c]) {
+        c++;
+      } else {
+        break;
+      }
+    }
+    out.push("</tr>");
+  }
+  out.push("</table>");
+  return out.join("");
+}
+
 export default function ImageResults({ jobId, tables }: Props) {
   const groups: ImageGroup[] = useMemo(() => {
     const byPage = new Map<number, TableData[]>();
@@ -120,7 +169,8 @@ export default function ImageResults({ jobId, tables }: Props) {
   }
 
   function downloadHtml() {
-    const wrapped = `<!doctype html><html><head><meta charset="utf-8"><title>Table ${t.index}</title><style>table{border-collapse:collapse;font-family:sans-serif}th,td{border:1px solid #ccc;padding:4px 8px}th{background:#eee}</style></head><body>${t.html}</body></html>`;
+    const body = htmlFromCells(editedCells, t.html);
+    const wrapped = `<!doctype html><html><head><meta charset="utf-8"><title>Table ${t.index}</title><style>table{border-collapse:collapse;font-family:sans-serif}th,td{border:1px solid #ccc;padding:4px 8px}th{background:#eee}</style></head><body>${body}</body></html>`;
     downloadString(wrapped, `table_${t.index}.html`, "text/html");
     toast.success("Download started", `Table ${t.index} · HTML`);
   }
