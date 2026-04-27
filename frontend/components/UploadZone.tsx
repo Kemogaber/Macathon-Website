@@ -192,7 +192,7 @@ export default function UploadZone({ files, onChange, disabled }: Props) {
       )}
 
       {error && (
-        <p className="text-yellow-300 text-sm flex items-center gap-2">
+        <p className="text-yellow-300 light:text-yellow-700 text-sm flex items-center gap-2">
           <span>⚠</span> {error}
         </p>
       )}

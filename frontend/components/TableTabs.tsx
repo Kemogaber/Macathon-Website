@@ -208,7 +208,7 @@ function ConfidenceBadge({ label, value }: { label: string; value: number }) {
     value >= 0.85
       ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
       : value >= 0.6
-        ? "border-yellow-500/40 bg-yellow-500/10 text-yellow-300"
+        ? "border-yellow-500/40 bg-yellow-500/10 text-yellow-300 light:text-yellow-700"
         : "border-red-500/40 bg-red-500/10 text-red-300";
   return (
     <span

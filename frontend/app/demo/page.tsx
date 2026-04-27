@@ -261,6 +261,9 @@ export default function DemoPage() {
   const confirmableCount = pageStates.filter(
     (p) => p.detected && !p.recognized && p.rects.length > 0,
   ).length;
+  const undetectedCount = pageStates.filter(
+    (p) => !p.detected && !p.recognized,
+  ).length;
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-12">
@@ -329,17 +332,31 @@ export default function DemoPage() {
             </span>
             <button
               onClick={() => runDetection("one")}
-              disabled={busy !== null || ps.recognized}
-              className="px-4 py-2 rounded-lg bg-sky-500/15 border border-sky-400/40 hover:bg-sky-500/25 text-sky-100 text-sm font-bold disabled:opacity-40"
+              disabled={busy !== null || ps.detected || ps.recognized}
+              className="px-4 py-2 rounded-lg bg-sky-500/15 border border-sky-400/40 hover:bg-sky-500/25 text-sky-100 light:text-sky-700 text-sm font-bold disabled:opacity-40"
+              title={
+                ps.detected
+                  ? "Already parsed — adjust boxes or click Confirm"
+                  : ""
+              }
             >
-              {busy === "detect-one" ? "Parsing…" : "Parse this image"}
+              {busy === "detect-one"
+                ? "Parsing…"
+                : ps.detected
+                  ? "✓ Parsed"
+                  : "Parse this image"}
             </button>
             <button
               onClick={() => runDetection("all")}
-              disabled={busy !== null}
-              className="px-4 py-2 rounded-lg bg-indigo-500/15 border border-indigo-400/40 hover:bg-indigo-500/25 text-indigo-100 text-sm font-bold disabled:opacity-40"
+              disabled={busy !== null || undetectedCount === 0}
+              className="px-4 py-2 rounded-lg bg-indigo-500/15 border border-indigo-400/40 hover:bg-indigo-500/25 text-indigo-100 light:text-indigo-700 text-sm font-bold disabled:opacity-40"
+              title={
+                undetectedCount === 0 ? "All images already parsed" : ""
+              }
             >
-              {busy === "detect-all" ? "Parsing all…" : "Parse all"}
+              {busy === "detect-all"
+                ? "Parsing all…"
+                : `Parse all (${undetectedCount})`}
             </button>
             {ps.detected && !ps.recognized && (
               <span className="text-xs text-muted-2 font-mono">
@@ -361,7 +378,7 @@ export default function DemoPage() {
               <button
                 onClick={() => addRect(currentPage)}
                 disabled={ps.recognized}
-                className="px-3 py-1 rounded-lg border border-emerald-400/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-200 text-xs disabled:opacity-40"
+                className="px-3 py-1 rounded-lg border border-emerald-400/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-200 light:text-emerald-700 text-xs disabled:opacity-40"
               >
                 + Add box
               </button>
@@ -435,7 +452,7 @@ export default function DemoPage() {
             <button
               onClick={() => runConfirm("all")}
               disabled={busy !== null || confirmableCount === 0}
-              className="px-4 py-2 rounded-lg bg-fuchsia-500/15 border border-fuchsia-400/40 hover:bg-fuchsia-500/25 text-fuchsia-100 text-sm font-bold disabled:opacity-40"
+              className="px-4 py-2 rounded-lg bg-fuchsia-500/15 border border-fuchsia-400/40 hover:bg-fuchsia-500/25 text-fuchsia-100 light:text-fuchsia-700 text-sm font-bold disabled:opacity-40"
             >
               {busy === "confirm-all"
                 ? "Confirming all…"
@@ -458,7 +475,7 @@ export default function DemoPage() {
             {tables.length > 0 && (
               <a
                 href={jobZipUrl(job.job_id)}
-                className="px-4 py-2 rounded-xl bg-amber-500/15 border border-amber-400/40 hover:bg-amber-500/25 text-amber-100 text-sm font-bold"
+                className="px-4 py-2 rounded-xl bg-amber-500/15 border border-amber-400/40 hover:bg-amber-500/25 text-amber-100 light:text-amber-700 text-sm font-bold"
               >
                 Download all CSVs (ZIP)
               </a>
@@ -466,7 +483,7 @@ export default function DemoPage() {
           </div>
 
           {errorMsg && (
-            <p className="text-yellow-300 text-sm text-center">{errorMsg}</p>
+            <p className="text-yellow-300 light:text-yellow-700 text-sm text-center">{errorMsg}</p>
           )}
 
           {tables.length > 0 && (

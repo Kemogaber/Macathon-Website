@@ -86,17 +86,17 @@ export default function ImageResults({ jobId, tables }: Props) {
           <button
             onClick={() => setActiveTable((i) => Math.max(0, i - 1))}
             disabled={safeTable === 0}
-            className="px-3 py-1 rounded-md border border-purple-400/40 bg-purple-500/10 hover:bg-purple-500/20 disabled:opacity-30 text-xs text-purple-200 font-mono"
+            className="px-3 py-1 rounded-md border border-purple-400/40 bg-purple-500/10 hover:bg-purple-500/20 disabled:opacity-30 text-xs text-purple-200 light:text-purple-700 font-mono"
           >
             ← Prev table
           </button>
-          <span className="font-mono text-xs text-purple-200 text-center">
+          <span className="font-mono text-xs text-purple-200 light:text-purple-700 text-center">
             Table {safeTable + 1} / {tableCount}
           </span>
           <button
             onClick={() => setActiveTable((i) => Math.min(tableCount - 1, i + 1))}
             disabled={safeTable === tableCount - 1}
-            className="px-3 py-1 rounded-md border border-purple-400/40 bg-purple-500/10 hover:bg-purple-500/20 disabled:opacity-30 text-xs text-purple-200 font-mono"
+            className="px-3 py-1 rounded-md border border-purple-400/40 bg-purple-500/10 hover:bg-purple-500/20 disabled:opacity-30 text-xs text-purple-200 light:text-purple-700 font-mono"
           >
             Next table →
           </button>
@@ -169,7 +169,7 @@ function CsvDownloadMenu({ jobId, group }: { jobId: string; group: ImageGroup })
     return (
       <button
         onClick={() => downloadSingle(group.tables[0].csv, `table_${group.tables[0].index}.csv`)}
-        className="px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-400/40 hover:bg-emerald-500/25 text-xs font-mono text-emerald-200"
+        className="px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-400/40 hover:bg-emerald-500/25 text-xs font-mono text-emerald-200 light:text-emerald-700"
       >
         Download CSV
       </button>
@@ -180,7 +180,7 @@ function CsvDownloadMenu({ jobId, group }: { jobId: string; group: ImageGroup })
     <div className="relative inline-block" ref={ref}>
       <button
         onClick={() => setOpen((o) => !o)}
-        className="px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-400/40 hover:bg-emerald-500/25 text-xs font-mono text-emerald-200"
+        className="px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-400/40 hover:bg-emerald-500/25 text-xs font-mono text-emerald-200 light:text-emerald-700"
       >
         Download CSV ▾
       </button>

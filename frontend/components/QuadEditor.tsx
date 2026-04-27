@@ -96,7 +96,7 @@ function rotationHandlePos(r: RectQuad, scale: number) {
   return [r.cx + lx * c - ly * s, r.cy + lx * s + ly * c] as [number, number];
 }
 
-type Tool = "pan" | "zoom";
+type Tool = "pan" | "zoom-in" | "zoom-out";
 
 export default function QuadEditor({
   imageUrl,
@@ -114,6 +114,12 @@ export default function QuadEditor({
   const [fitScale, setFitScale] = useState(1);
   const [drag, setDrag] = useState<DragMode | null>(null);
   const [tool, setTool] = useState<Tool>("pan");
+  const [imgLoaded, setImgLoaded] = useState(false);
+
+  // reset loaded flag when image URL changes
+  useEffect(() => {
+    setImgLoaded(false);
+  }, [imageUrl]);
 
   // Zoom toward a client-coordinate point, keeping it under the cursor.
   const zoomAt = useCallback(
@@ -257,7 +263,9 @@ export default function QuadEditor({
       ? "grabbing"
       : tool === "pan"
         ? "grab"
-        : "zoom-in";
+        : tool === "zoom-in"
+          ? "zoom-in"
+          : "zoom-out";
 
   return (
     <div className="w-full">
@@ -279,17 +287,32 @@ export default function QuadEditor({
           </button>
           <button
             type="button"
-            onClick={() => setTool("zoom")}
+            onClick={() => setTool("zoom-in")}
             className={`w-9 h-9 rounded-lg border flex items-center justify-center transition-colors ${
-              tool === "zoom"
+              tool === "zoom-in"
                 ? "border-cyan bg-[rgba(0,212,255,0.12)] text-cyan"
                 : "border-border hover:border-cyan/40 text-muted-2"
             }`}
-            title="Zoom tool — click to zoom in, alt-click to zoom out"
+            title="Zoom in — click on a point to zoom toward it"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="7" />
               <path d="M21 21 L16 16 M8 11 L14 11 M11 8 L11 14" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={() => setTool("zoom-out")}
+            className={`w-9 h-9 rounded-lg border flex items-center justify-center transition-colors ${
+              tool === "zoom-out"
+                ? "border-cyan bg-[rgba(0,212,255,0.12)] text-cyan"
+                : "border-border hover:border-cyan/40 text-muted-2"
+            }`}
+            title="Zoom out — click on a point to zoom away from it"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="7" />
+              <path d="M21 21 L16 16 M8 11 L14 11" />
             </svg>
           </button>
           <button
@@ -311,28 +334,41 @@ export default function QuadEditor({
         <span className="text-xs text-muted font-mono">
           {tool === "pan"
             ? "Pan: click + drag · drag edges to slide · top knob to rotate"
-            : "Zoom: click to zoom in · alt-click to zoom out"}
+            : tool === "zoom-in"
+              ? "Click a point to zoom in toward it"
+              : "Click a point to zoom out from it"}
         </span>
       </div>
 
       <div
         ref={frameRef}
-        className="relative bg-input rounded-xl overflow-auto flex items-center justify-center"
-        style={{ maxHeight: `${FRAME_MAX_VH}vh`, minHeight: 320 }}
+        className="relative bg-input rounded-xl overflow-auto flex"
+        style={{
+          maxHeight: `${FRAME_MAX_VH}vh`,
+          minHeight: 320,
+          // `safe center` keeps centering when content fits but stops centering
+          // (so all overflow is reachable via scroll) when it doesn't.
+          justifyContent: "safe center",
+          alignItems: "safe center",
+        }}
       >
         <div
-          className="relative inline-block"
+          className="relative shrink-0"
           style={{ width: renderedW, height: renderedH, cursor: imgCursor }}
           onClick={(e) => {
-            if (tool !== "zoom") return;
-            if ((e.target as Element).tagName !== "IMG") return;
-            zoomAt(e.clientX, e.clientY, e.altKey ? -1 : 1);
+            if (tool === "zoom-in") {
+              if ((e.target as Element).tagName !== "IMG") return;
+              zoomAt(e.clientX, e.clientY, 1);
+            } else if (tool === "zoom-out") {
+              if ((e.target as Element).tagName !== "IMG") return;
+              zoomAt(e.clientX, e.clientY, -1);
+            }
           }}
           onContextMenu={(e) => {
-            if (tool !== "zoom") return;
+            if (tool !== "zoom-in" && tool !== "zoom-out") return;
             if ((e.target as Element).tagName !== "IMG") return;
             e.preventDefault();
-            zoomAt(e.clientX, e.clientY, -1);
+            zoomAt(e.clientX, e.clientY, tool === "zoom-in" ? -1 : 1);
           }}
           onPointerDown={(e) => {
             if (tool !== "pan") return;
@@ -354,13 +390,14 @@ export default function QuadEditor({
             ref={imgRef}
             src={imageUrl}
             alt="page"
-            className="block select-none"
+            className={`block select-none transition-opacity ${imgLoaded ? "opacity-100" : "opacity-0"}`}
             draggable={false}
             style={{ width: renderedW, height: renderedH }}
+            onLoad={() => setImgLoaded(true)}
           />
 
           <svg
-            className="absolute inset-0 pointer-events-none"
+            className={`absolute inset-0 pointer-events-none transition-opacity ${imgLoaded ? "opacity-100" : "opacity-0"}`}
             width={renderedW}
             height={renderedH}
             viewBox={`0 0 ${imageWidth} ${imageHeight}`}

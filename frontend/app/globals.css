@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* Theme-aware variants — match `dark:` and `light:` to the data-theme attr. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+@custom-variant light (&:where([data-theme="light"], [data-theme="light"] *));
+
 /* ---------- design tokens (dark, default) ---------- */
 :root {
   --bg: #0a0b0f;

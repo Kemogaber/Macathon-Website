@@ -148,7 +148,7 @@ function Stat({
     tone === "good"
       ? "text-emerald-300"
       : tone === "warn"
-        ? "text-yellow-300"
+        ? "text-yellow-300 light:text-yellow-700"
         : tone === "bad"
           ? "text-red-300"
           : "text-text";
