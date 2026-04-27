@@ -148,11 +148,19 @@ class OCRModule:
     def extract_text(self, cell_crop: Image.Image) -> str:
         """Run OCR on a single cell crop and return text."""
         arr = np.array(cell_crop)
-        result = self.ocr.ocr(arr)
-        if not result or not result[0]:
+        raw = self.ocr.ocr(arr)
+        if not raw:
             return ""
-        lines = [line[1][0] for line in result[0] if line[1][1] > 0.3]
-        return " ".join(lines).strip()
+        # PaddleOCR v3 returns OCRResult objects with rec_texts/rec_scores
+        # attributes — not the v2 [(box, (text, conf)), ...] tuple list.
+        parts: list[str] = []
+        for res in raw:
+            texts = getattr(res, "rec_texts", None) or []
+            scores = getattr(res, "rec_scores", None) or [1.0] * len(texts)
+            for text, score in zip(texts, scores):
+                if text and score > 0.3:
+                    parts.append(text)
+        return " ".join(parts).strip()
 
 
 # ---------------------------------------------------------------------------
