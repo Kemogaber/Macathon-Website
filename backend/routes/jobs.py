@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import APIRouter, BackgroundTasks, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
@@ -49,7 +51,8 @@ async def create_job(files: list[UploadFile] = File(...)):
         uploads.append((data, f.content_type))
 
     try:
-        job = jobsvc.create_job(uploads)
+        # PDF rasterize + cv2 reads are CPU-bound — must not block the loop.
+        job = await asyncio.to_thread(jobsvc.create_job, uploads)
     except ValueError as e:
         raise HTTPException(400, str(e))
     except Exception as e:
@@ -71,11 +74,12 @@ def get_page_image(job_id: str, page_index: int):
 
 
 @router.post("/jobs/{job_id}/detect")
-def detect(job_id: str, body: DetectRequest):
+async def detect(job_id: str, body: DetectRequest):
     job = jobsvc.get_job(job_id)
     if job is None:
         raise HTTPException(404, "job not found")
-    jobsvc.run_detect(job_id, body.pages)
+    async with jobsvc.inference_slot():
+        await asyncio.to_thread(jobsvc.run_detect, job_id, body.pages)
     return {
         "pages": [
             {
@@ -103,8 +107,17 @@ def page_csv_zip(job_id: str, page_index: int):
     )
 
 
+async def _run_recognize_task(job_id: str, confirmed: list[dict]) -> None:
+    """Background coroutine: take the inference slot, then run the sync
+    pipeline in a thread. Multiple users can have recognize jobs queued —
+    they execute one at a time but the event loop stays responsive for
+    status polls and page-image fetches throughout."""
+    async with jobsvc.inference_slot():
+        await asyncio.to_thread(jobsvc.run_recognize, job_id, confirmed)
+
+
 @router.post("/jobs/{job_id}/recognize")
-def recognize(job_id: str, body: RecognizeRequest, background: BackgroundTasks):
+async def recognize(job_id: str, body: RecognizeRequest, background: BackgroundTasks):
     job = jobsvc.get_job(job_id)
     if job is None:
         raise HTTPException(404, "job not found")
@@ -112,7 +125,7 @@ def recognize(job_id: str, body: RecognizeRequest, background: BackgroundTasks):
         raise HTTPException(400, "no confirmed tables")
 
     confirmed = [c.model_dump() for c in body.confirmed]
-    background.add_task(jobsvc.run_recognize, job_id, confirmed)
+    background.add_task(_run_recognize_task, job_id, confirmed)
     job.status = "running"
     job.progress = 0.0
     return {"status": "running"}

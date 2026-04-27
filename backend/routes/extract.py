@@ -1,5 +1,8 @@
+import asyncio
+
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
+import jobs as jobsvc
 from models.schemas import ExtractionResponse
 from pipeline import get_pipeline
 
@@ -26,5 +29,6 @@ async def extract_table(file: UploadFile = File(...)):
             "/api/extract takes a single image.",
         )
 
-    result = get_pipeline().extract(data)
+    async with jobsvc.inference_slot():
+        result = await asyncio.to_thread(get_pipeline().extract, data)
     return ExtractionResponse(**result)
