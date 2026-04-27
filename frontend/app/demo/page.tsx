@@ -133,13 +133,12 @@ export default function DemoPage() {
     }
   }
 
-  async function handleRotateCurrentPage(direction: "left" | "right") {
-    if (!job) return;
+  async function handleRotateCurrentPage(degrees: number) {
+    if (!job || degrees === 0) return;
     const idx = currentPage;
     try {
-      const j = await rotatePage(job.job_id, idx, direction);
+      const j = await rotatePage(job.job_id, idx, degrees);
       setJob(j);
-      // Rotation invalidates detections and any rectangles drawn on this page.
       setPageStates((prev) =>
         prev.map((p, i) =>
           i === idx ? { rects: [], activeRect: 0, detected: false, recognized: false } : p,
@@ -148,7 +147,7 @@ export default function DemoPage() {
       setTables((prev) => prev.filter((t) => t.page_index !== idx));
       toast.success(
         "Rotated",
-        `Page ${idx + 1} rotated ${direction === "left" ? "↺" : "↻"} — re-run Parse`,
+        `Page ${idx + 1} rotated ${degrees > 0 ? "↻" : "↺"} ${Math.abs(degrees)}° — re-run Parse`,
       );
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Rotate failed.";
@@ -523,7 +522,7 @@ export default function DemoPage() {
                   onAdd={handleAddMoreFiles}
                 />
                 <button
-                  onClick={() => handleRotateCurrentPage("left")}
+                  onClick={() => handleRotateCurrentPage(-90)}
                   disabled={busy !== null || ps.recognized}
                   title="Rotate 90° left"
                   className="w-8 h-7 rounded-lg border border-border bg-overlay hover:bg-overlay/70 text-muted-2 hover:text-text text-sm flex items-center justify-center disabled:opacity-30"
@@ -531,7 +530,7 @@ export default function DemoPage() {
                   ↺
                 </button>
                 <button
-                  onClick={() => handleRotateCurrentPage("right")}
+                  onClick={() => handleRotateCurrentPage(90)}
                   disabled={busy !== null || ps.recognized}
                   title="Rotate 90° right"
                   className="w-8 h-7 rounded-lg border border-border bg-overlay hover:bg-overlay/70 text-muted-2 hover:text-text text-sm flex items-center justify-center disabled:opacity-30"

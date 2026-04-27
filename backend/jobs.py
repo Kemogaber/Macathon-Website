@@ -244,7 +244,7 @@ def add_pages_to_job(job_id: str, uploads: list[tuple[bytes, str]]) -> Job:
     return job
 
 
-def rotate_page(job_id: str, page_index: int, direction: str) -> Job:
+def rotate_page(job_id: str, page_index: int, degrees: float) -> Job:
     job = _JOBS.get(job_id)
     if job is None:
         raise ValueError("job not found")
@@ -256,8 +256,34 @@ def rotate_page(job_id: str, page_index: int, direction: str) -> Job:
     bgr = cv2.imread(str(fpath))
     if bgr is None:
         raise ValueError("page image unreadable")
-    code = cv2.ROTATE_90_COUNTERCLOCKWISE if direction == "left" else cv2.ROTATE_90_CLOCKWISE
-    rotated = cv2.rotate(bgr, code)
+
+    deg = float(degrees) % 360.0
+    if deg == 0.0:
+        return job
+
+    if deg in (90.0, 180.0, 270.0):
+        code = {
+            90.0: cv2.ROTATE_90_CLOCKWISE,
+            180.0: cv2.ROTATE_180,
+            270.0: cv2.ROTATE_90_COUNTERCLOCKWISE,
+        }[deg]
+        rotated = cv2.rotate(bgr, code)
+    else:
+        h, w = bgr.shape[:2]
+        M = cv2.getRotationMatrix2D((w / 2.0, h / 2.0), -deg, 1.0)
+        cos = abs(M[0, 0])
+        sin = abs(M[0, 1])
+        new_w = int(h * sin + w * cos)
+        new_h = int(h * cos + w * sin)
+        M[0, 2] += (new_w - w) / 2.0
+        M[1, 2] += (new_h - h) / 2.0
+        rotated = cv2.warpAffine(
+            bgr, M, (new_w, new_h),
+            flags=cv2.INTER_CUBIC,
+            borderMode=cv2.BORDER_CONSTANT,
+            borderValue=(255, 255, 255),
+        )
+
     cv2.imwrite(str(fpath), rotated)
     h, w = rotated.shape[:2]
     page["width"] = w

@@ -215,10 +215,10 @@ export async function removePageFromJob(
 export async function rotatePage(
   jobId: string,
   pageIndex: number,
-  direction: "left" | "right",
+  degrees: number,
 ): Promise<JobInit> {
   const res = await fetch(
-    `${API_URL}/api/jobs/${jobId}/pages/${pageIndex}/rotate?direction=${direction}`,
+    `${API_URL}/api/jobs/${jobId}/pages/${pageIndex}/rotate?degrees=${degrees}`,
     { method: "POST" },
   );
   if (!res.ok) {

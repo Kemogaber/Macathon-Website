@@ -312,11 +312,23 @@ def delete_page(job_id: str, page_index: int):
 
 
 @api.post("/api/jobs/{job_id}/pages/{page_index}/rotate")
-def rotate_page(job_id: str, page_index: int, direction: str = "right"):
-    if direction not in ("left", "right"):
-        raise HTTPException(400, "direction must be 'left' or 'right'")
+def rotate_page(
+    job_id: str,
+    page_index: int,
+    degrees: float | None = None,
+    direction: str | None = None,
+):
+    """Rotate the page by `degrees` (positive = clockwise). Backwards-
+    compatible direction= alias still works: 'left' → -90, 'right' → 90."""
+    if degrees is None:
+        if direction == "left":
+            degrees = -90.0
+        elif direction == "right":
+            degrees = 90.0
+        else:
+            raise HTTPException(400, "Provide degrees=<float> or direction=left|right")
     try:
-        job = jobsvc.rotate_page(job_id, page_index, direction)
+        job = jobsvc.rotate_page(job_id, page_index, float(degrees))
     except ValueError as e:
         raise HTTPException(404, str(e))
     return {"job_id": job.id, "status": job.status, "pages": job.pages}
