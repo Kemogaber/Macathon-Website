@@ -312,3 +312,71 @@ export async function getMetrics(): Promise<MetricsData> {
   if (!res.ok) throw new Error(`Metrics fetch failed (${res.status})`);
   return res.json();
 }
+
+// ---------------------------------------------------------------------------
+// Admin: API key management. All endpoints require X-Admin-Key.
+// ---------------------------------------------------------------------------
+
+export interface ApiKeyInfo {
+  id: string;
+  name: string;
+  prefix: string;
+  created_at: string;
+  last_used_at: string | null;
+}
+
+export interface CreatedApiKey extends ApiKeyInfo {
+  key: string; // plaintext, returned once
+}
+
+function adminHeaders(adminKey: string): HeadersInit {
+  return { "X-Admin-Key": adminKey };
+}
+
+async function adminFetch(
+  path: string,
+  adminKey: string,
+  init: RequestInit = {},
+): Promise<Response> {
+  const res = await fetch(`${API_URL}${path}`, {
+    ...init,
+    headers: { ...adminHeaders(adminKey), ...(init.headers ?? {}) },
+  });
+  if (res.status === 401) throw new Error("Invalid admin key.");
+  if (res.status === 503) throw new Error("Admin API disabled — set ADMIN_API_KEY on the server.");
+  if (!res.ok) {
+    let detail = `${res.status} ${res.statusText}`;
+    try {
+      const j = await res.json();
+      if (j?.detail) detail = j.detail;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(detail);
+  }
+  return res;
+}
+
+export async function listApiKeys(adminKey: string): Promise<ApiKeyInfo[]> {
+  const res = await adminFetch("/api/admin/keys", adminKey);
+  const j = await res.json();
+  return j.keys ?? [];
+}
+
+export async function createApiKey(
+  adminKey: string,
+  name: string,
+): Promise<CreatedApiKey> {
+  const res = await adminFetch("/api/admin/keys", adminKey, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  return res.json();
+}
+
+export async function revokeApiKey(adminKey: string, keyId: string): Promise<void> {
+  await adminFetch(`/api/admin/keys/${encodeURIComponent(keyId)}`, adminKey, {
+    method: "DELETE",
+  });
+}
