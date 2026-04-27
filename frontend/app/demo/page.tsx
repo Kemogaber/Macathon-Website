@@ -19,6 +19,7 @@ import {
   type JobStatus,
 } from "@/lib/api";
 import { useDemoStore, type PerPageState, type Step } from "@/lib/demoStore";
+import { useToast } from "@/lib/toast";
 import { useEffect, useRef, useState } from "react";
 
 export default function DemoPage() {
@@ -44,6 +45,7 @@ export default function DemoPage() {
     reset,
     pollRef,
   } = useDemoStore();
+  const toast = useToast();
 
   const [pageInput, setPageInput] = useState("");
   useEffect(() => {
@@ -77,8 +79,15 @@ export default function DemoPage() {
       setCurrentPage(0);
       setTables([]);
       setStep("review");
+      toast.success(
+        "Upload complete",
+        `${files.length} file${files.length === 1 ? "" : "s"} · ${j.pages.length} page${j.pages.length === 1 ? "" : "s"}`,
+        "/demo",
+      );
     } catch (e) {
-      setErrorMsg(e instanceof Error ? e.message : "Upload failed.");
+      const msg = e instanceof Error ? e.message : "Upload failed.";
+      setErrorMsg(msg);
+      toast.error("Upload failed", msg);
       setStep("error");
     } finally {
       setBusy(null);
@@ -92,6 +101,8 @@ export default function DemoPage() {
     try {
       const target = scope === "one" ? [currentPage] : null;
       const res = await detectPages(job.job_id, target);
+      let touched = 0;
+      let totalBoxes = 0;
       setPageStates((prev) => {
         const next = prev.map((p) => ({ ...p }));
         for (const rp of res.pages) {
@@ -100,11 +111,20 @@ export default function DemoPage() {
           next[rp.index].detected = true;
           next[rp.index].rects = rp.detections.map((d) => quadToRect(d.quad));
           next[rp.index].activeRect = 0;
+          touched++;
+          totalBoxes += rp.detections.length;
         }
         return next;
       });
+      toast.success(
+        scope === "all" ? "Parse all complete" : "Parse complete",
+        `${totalBoxes} box${totalBoxes === 1 ? "" : "es"} on ${touched} image${touched === 1 ? "" : "s"}`,
+        "/demo",
+      );
     } catch (e) {
-      setErrorMsg(e instanceof Error ? e.message : "Detection failed.");
+      const msg = e instanceof Error ? e.message : "Detection failed.";
+      setErrorMsg(msg);
+      toast.error("Parse failed", msg);
     } finally {
       setBusy(null);
     }
@@ -215,7 +235,16 @@ export default function DemoPage() {
               for (const i of targetPages) next[i].recognized = true;
               return next;
             });
-            if (s.error) setErrorMsg(`Some tables failed: ${s.error}`);
+            if (s.error) {
+              setErrorMsg(`Some tables failed: ${s.error}`);
+              toast.error("Some tables failed", s.error);
+            } else {
+              toast.success(
+                scope === "all" ? "Confirm all complete" : "Confirm complete",
+                `${s.tables.length} table${s.tables.length === 1 ? "" : "s"} ready`,
+                "/demo",
+              );
+            }
             setBusy(null);
           } else if (s.status === "cancelled") {
             if (pollRef.current) clearInterval(pollRef.current);
@@ -223,12 +252,16 @@ export default function DemoPage() {
             setBusy(null);
           } else if (s.status === "error") {
             if (pollRef.current) clearInterval(pollRef.current);
-            setErrorMsg(s.error ?? "Recognition failed.");
+            const msg = s.error ?? "Recognition failed.";
+            setErrorMsg(msg);
+            toast.error("Recognition failed", msg);
             setBusy(null);
           }
         } catch (e) {
           if (pollRef.current) clearInterval(pollRef.current);
-          setErrorMsg(e instanceof Error ? e.message : "Polling failed.");
+          const msg = e instanceof Error ? e.message : "Polling failed.";
+          setErrorMsg(msg);
+          toast.error("Polling failed", msg);
           setBusy(null);
         }
       }, 800);
@@ -564,6 +597,7 @@ export default function DemoPage() {
 function GlobalDownloadMenu({ jobId }: { jobId: string }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
+  const toast = useToast();
 
   useEffect(() => {
     if (!open) return;
@@ -587,7 +621,10 @@ function GlobalDownloadMenu({ jobId }: { jobId: string }) {
           <a
             href={jobCsvUrl(jobId)}
             download
-            onClick={() => setOpen(false)}
+            onClick={() => {
+              setOpen(false);
+              toast.success("Download started", "One combined CSV");
+            }}
             className="block w-full text-left px-3 py-2 text-xs font-mono text-text hover:bg-overlay"
           >
             One combined CSV
@@ -598,7 +635,10 @@ function GlobalDownloadMenu({ jobId }: { jobId: string }) {
           <a
             href={jobZipUrl(jobId)}
             download
-            onClick={() => setOpen(false)}
+            onClick={() => {
+              setOpen(false);
+              toast.success("Download started", "ZIP of CSVs");
+            }}
             className="block w-full text-left px-3 py-2 text-xs font-mono text-text hover:bg-overlay border-t border-border"
           >
             ZIP of CSVs

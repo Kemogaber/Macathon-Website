@@ -8,6 +8,7 @@ import {
   type CellData,
   type TableData,
 } from "@/lib/api";
+import { useToast } from "@/lib/toast";
 
 interface Props {
   jobId: string;
@@ -57,6 +58,7 @@ export default function ImageResults({ jobId, tables }: Props) {
   const [activeTable, setActiveTable] = useState(0);
   const [showConfidence, setShowConfidence] = useState(true);
   const [edits, setEdits] = useState<Record<number, CellData[]>>({});
+  const toast = useToast();
 
   useEffect(() => {
     setEdits((prev) => {
@@ -114,11 +116,13 @@ export default function ImageResults({ jobId, tables }: Props) {
   function downloadEditedCsv() {
     const csv = csvFromCells(editedCells, t.csv);
     downloadString(csv, `table_${t.index}.csv`, "text/csv");
+    toast.success("Download started", `Table ${t.index} · CSV`);
   }
 
   function downloadHtml() {
     const wrapped = `<!doctype html><html><head><meta charset="utf-8"><title>Table ${t.index}</title><style>table{border-collapse:collapse;font-family:sans-serif}th,td{border:1px solid #ccc;padding:4px 8px}th{background:#eee}</style></head><body>${t.html}</body></html>`;
     downloadString(wrapped, `table_${t.index}.html`, "text/html");
+    toast.success("Download started", `Table ${t.index} · HTML`);
   }
 
   return (

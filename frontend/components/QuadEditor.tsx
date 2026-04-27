@@ -27,7 +27,7 @@ const ROT_OFFSET = 36;          // pixel distance of rotation handle above top e
 const STROKE = "#00d4ff";
 const STROKE_INACTIVE = "rgba(124,58,237,0.55)";
 const FRAME_MAX_VH = 80;        // viewport-height cap for the frame
-const ZOOM_STEPS = [0.25, 0.35, 0.5, 0.75, 1, 1.5, 2, 3];
+const ZOOM_STEPS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
 const MIN_SIZE = 12;            // min rect width/height in image pixels
 
 type DragMode =
@@ -151,8 +151,11 @@ export default function QuadEditor({
       requestAnimationFrame(() => {
         const f = frameRef.current;
         if (!f) return;
-        f.scrollLeft = px * newScale - (clientX - frameRect.left);
-        f.scrollTop = py * newScale - (clientY - frameRect.top);
+        f.scrollTo({
+          left: px * newScale - (clientX - frameRect.left),
+          top: py * newScale - (clientY - frameRect.top),
+          behavior: "smooth",
+        });
       });
     },
     [zoom, fitScale],
@@ -373,7 +376,12 @@ export default function QuadEditor({
       >
         <div
           className="relative shrink-0"
-          style={{ width: renderedW, height: renderedH, cursor: imgCursor }}
+          style={{
+            width: renderedW,
+            height: renderedH,
+            cursor: imgCursor,
+            transition: drag ? "none" : "width 180ms ease-out, height 180ms ease-out",
+          }}
           onClick={(e) => {
             if (tool === "zoom-in") {
               if ((e.target as Element).tagName !== "IMG") return;
@@ -411,7 +419,11 @@ export default function QuadEditor({
             alt="page"
             className="block select-none"
             draggable={false}
-            style={{ width: renderedW, height: renderedH }}
+            style={{
+              width: renderedW,
+              height: renderedH,
+              transition: drag ? "none" : "width 180ms ease-out, height 180ms ease-out",
+            }}
             onLoad={() => setImgLoaded(true)}
           />
 
@@ -421,6 +433,11 @@ export default function QuadEditor({
             height={renderedH}
             viewBox={`0 0 ${imageWidth} ${imageHeight}`}
             preserveAspectRatio="none"
+            style={{
+              width: renderedW,
+              height: renderedH,
+              transition: drag ? "none" : "width 180ms ease-out, height 180ms ease-out",
+            }}
           >
             {rects.map((r, ri) => {
               const isActive = ri === activeIndex;

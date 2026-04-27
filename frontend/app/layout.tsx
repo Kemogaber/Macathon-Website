@@ -4,6 +4,8 @@ import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { DemoProvider } from "@/lib/demoStore";
+import { ToastProvider } from "@/lib/toast";
+import Toaster from "@/components/Toaster";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
@@ -24,11 +26,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="min-h-screen flex flex-col">
-        <DemoProvider>
-          <Navbar />
-          <main className="flex-1">{children}</main>
-          <Footer />
-        </DemoProvider>
+        <ToastProvider>
+          <DemoProvider>
+            <Navbar />
+            <main className="flex-1">{children}</main>
+            <Footer />
+            <Toaster />
+          </DemoProvider>
+        </ToastProvider>
       </body>
     </html>
   );
