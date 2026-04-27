@@ -149,7 +149,7 @@ export default function ChatWidget({ jobId, attachedTableCount = 0 }: Props) {
       )}
 
       {open && (
-        <div className="fixed bottom-6 right-6 z-50 w-[380px] max-w-[calc(100vw-3rem)] h-[560px] max-h-[calc(100vh-6rem)] glass rounded-2xl border border-border shadow-2xl flex flex-col overflow-hidden">
+        <div className="fixed bottom-6 right-6 z-50 w-[380px] max-w-[calc(100vw-3rem)] h-[560px] max-h-[calc(100vh-6rem)] bg-background rounded-2xl border border-border shadow-2xl flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface-3">
             <div className="min-w-0">
               <div className="text-sm font-bold text-text">Assistant</div>
@@ -168,13 +168,6 @@ export default function ChatWidget({ jobId, attachedTableCount = 0 }: Props) {
                 title="Clear conversation"
               >
                 Clear
-              </button>
-              <button
-                onClick={() => setOpen(false)}
-                className="text-muted-2 hover:text-text text-xl leading-none px-2"
-                aria-label="Close"
-              >
-                ×
               </button>
             </div>
           </div>
@@ -207,7 +200,7 @@ export default function ChatWidget({ jobId, attachedTableCount = 0 }: Props) {
             )}
           </div>
 
-          <div className="p-3 border-t border-border bg-surface-3">
+          <div className="p-3 border-t border-border bg-surface-3 space-y-2">
             <div className="flex items-end gap-2">
               <textarea
                 value={input}
@@ -235,6 +228,13 @@ export default function ChatWidget({ jobId, attachedTableCount = 0 }: Props) {
                 </button>
               )}
             </div>
+            <button
+              onClick={() => setOpen(false)}
+              className="w-full py-1.5 rounded-md border border-border text-muted-2 hover:text-text hover:bg-overlay text-xs font-mono"
+              aria-label="Close chat"
+            >
+              ▾ Close
+            </button>
           </div>
         </div>
       )}
