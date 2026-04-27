@@ -133,6 +133,27 @@ export function jobHtmlUrl(jobId: string): string {
   return `${API_URL}/api/jobs/${jobId}/html`;
 }
 
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export async function sendChat(
+  messages: ChatMessage[],
+  jobId?: string,
+): Promise<{ reply: string; model: string }> {
+  const res = await fetch(`${API_URL}/api/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messages, job_id: jobId ?? null }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }));
+    throw new Error(err.detail ?? `Request failed (${res.status})`);
+  }
+  return res.json();
+}
+
 export async function cancelJob(jobId: string): Promise<void> {
   await fetch(`${API_URL}/api/jobs/${jobId}/cancel`, { method: "POST" }).catch(
     () => {},

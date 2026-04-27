@@ -477,8 +477,46 @@ def build_combined_html(job_id: str) -> str:
     )
 
 
+def _cgroup_memory() -> tuple[int, int] | None:
+    """Return (used_bytes, limit_bytes) from cgroup, or None if unavailable.
+
+    Inside an HF Space container, /proc/meminfo reports the host's RAM (the
+    box is shared with many other Spaces, so it always looks ~88% full and
+    ~256GB total). The container's actual quota lives in cgroup. cgroup v2
+    is what HF uses on modern hardware; v1 is the fallback for older hosts.
+    """
+    try:
+        # cgroup v2
+        with open("/sys/fs/cgroup/memory.current") as f:
+            used = int(f.read().strip())
+        with open("/sys/fs/cgroup/memory.max") as f:
+            raw = f.read().strip()
+            limit = int(raw) if raw != "max" else 0
+        if limit > 0:
+            return used, limit
+    except Exception:
+        pass
+    try:
+        # cgroup v1
+        with open("/sys/fs/cgroup/memory/memory.usage_in_bytes") as f:
+            used = int(f.read().strip())
+        with open("/sys/fs/cgroup/memory/memory.limit_in_bytes") as f:
+            limit = int(f.read().strip())
+        # v1 uses an enormous sentinel for "unlimited"; ignore that case.
+        if 0 < limit < (1 << 62):
+            return used, limit
+    except Exception:
+        pass
+    return None
+
+
 def get_health() -> dict:
-    """In-container health: cpu/ram/uptime + active jobs. Used by /api/health."""
+    """In-container health: cpu/ram/uptime + active jobs. Used by /api/health.
+
+    RAM numbers prefer cgroup (the container's quota — what the HF dashboard
+    shows) over /proc/meminfo (the host's total — meaningless on a shared
+    host). Falls back to psutil if cgroup files aren't readable.
+    """
     info: dict = {
         "status": "ok",
         "uptime_s": int(time.time() - _METRICS["started_at"]),
@@ -489,17 +527,28 @@ def get_health() -> dict:
     }
     try:
         import psutil
-        proc = psutil.Process()
-        # interval=None makes this non-blocking — returns delta since last call
-        # (first call is 0.0, subsequent calls reflect real CPU usage).
         info["cpu_percent"] = round(psutil.cpu_percent(interval=None), 1)
-        vm = psutil.virtual_memory()
-        info["ram_percent"] = round(vm.percent, 1)
-        info["ram_used_mb"] = int(vm.used / (1024 * 1024))
-        info["ram_total_mb"] = int(vm.total / (1024 * 1024))
-        info["process_rss_mb"] = int(proc.memory_info().rss / (1024 * 1024))
+        info["process_rss_mb"] = int(psutil.Process().memory_info().rss / (1024 * 1024))
     except Exception as e:
         info["psutil_error"] = str(e)
+
+    cg = _cgroup_memory()
+    if cg is not None:
+        used, limit = cg
+        info["ram_used_mb"] = int(used / (1024 * 1024))
+        info["ram_total_mb"] = int(limit / (1024 * 1024))
+        info["ram_percent"] = round(used / limit * 100, 1)
+        info["ram_source"] = "cgroup"
+    else:
+        try:
+            import psutil
+            vm = psutil.virtual_memory()
+            info["ram_percent"] = round(vm.percent, 1)
+            info["ram_used_mb"] = int(vm.used / (1024 * 1024))
+            info["ram_total_mb"] = int(vm.total / (1024 * 1024))
+            info["ram_source"] = "host"
+        except Exception:
+            pass
     return info
 
 

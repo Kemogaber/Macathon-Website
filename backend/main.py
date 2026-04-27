@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 import jobs as jobsvc
+from routes.chat import router as chat_router
 from routes.extract import router as extract_router
 from routes.jobs import router as jobs_router
 
@@ -16,6 +17,7 @@ app.add_middleware(
 
 app.include_router(extract_router, prefix="/api")
 app.include_router(jobs_router, prefix="/api")
+app.include_router(chat_router, prefix="/api")
 
 
 @app.get("/api/health")

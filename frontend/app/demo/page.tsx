@@ -1,6 +1,7 @@
 "use client";
 
 import BackendStatusPill from "@/components/BackendStatusPill";
+import ChatWidget from "@/components/ChatWidget";
 import UploadZone from "@/components/UploadZone";
 import QuadEditor, {
   quadToRect,
@@ -617,6 +618,8 @@ export default function DemoPage() {
           </button>
         </div>
       )}
+
+      <ChatWidget jobId={job?.job_id} attachedTableCount={tables.length} />
     </div>
   );
 }
