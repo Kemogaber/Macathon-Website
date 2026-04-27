@@ -46,11 +46,12 @@ class TableResult:
 class Job:
     id: str
     created_at: float
-    status: str = "detected"        # detected | running | done | error
+    status: str = "detected"        # detected | running | done | error | cancelled
     progress: float = 0.0
     error: str | None = None
     pages: list[dict] = field(default_factory=list)   # detect output
     tables: list[TableResult] = field(default_factory=list)
+    cancel_requested: bool = False
 
 
 _JOBS: dict[str, Job] = {}
@@ -189,10 +190,13 @@ def run_detect(job_id: str, page_indices: list[int] | None) -> None:
     job = _JOBS.get(job_id)
     if job is None:
         return
+    job.cancel_requested = False
     pipeline = get_pipeline()
     out_dir = _job_dir(job_id)
     indices = page_indices if page_indices is not None else list(range(len(job.pages)))
     for i in indices:
+        if job.cancel_requested:
+            break
         if i < 0 or i >= len(job.pages):
             continue
         page = job.pages[i]
@@ -203,6 +207,7 @@ def run_detect(job_id: str, page_indices: list[int] | None) -> None:
             for d in detections
         ]
         page["detected"] = True
+    job.cancel_requested = False
 
 
 # ---------------------------------------------------------------------------
@@ -216,6 +221,7 @@ def run_recognize(job_id: str, confirmed: list[dict]) -> None:
     job.status = "running"
     job.progress = 0.0
     job.error = None
+    job.cancel_requested = False
     start_index = len(job.tables)  # append, don't wipe — supports per-page parsing
 
     pipeline = get_pipeline()
@@ -224,7 +230,11 @@ def run_recognize(job_id: str, confirmed: list[dict]) -> None:
 
     page_cache: dict[int, np.ndarray] = {}
     failures: list[str] = []
+    cancelled = False
     for offset, item in enumerate(confirmed, start=1):
+        if job.cancel_requested:
+            cancelled = True
+            break
         idx = start_index + offset
         try:
             page_index = int(item["page_index"])
@@ -250,9 +260,10 @@ def run_recognize(job_id: str, confirmed: list[dict]) -> None:
             failures.append(f"page {item.get('page_index')} table {idx}: {e}")
         job.progress = offset / total
 
-    job.status = "done"
-    job.progress = 1.0
+    job.status = "cancelled" if cancelled else "done"
+    job.progress = 1.0 if not cancelled else job.progress
     job.error = "; ".join(failures) if failures else None
+    job.cancel_requested = False
 
 
 # ---------------------------------------------------------------------------
@@ -270,6 +281,28 @@ def build_zip(job_id: str) -> bytes:
             if csv_path.exists():
                 zf.write(csv_path, arcname=f"table_{t.index}.csv")
     return buf.getvalue()
+
+
+def request_cancel(job_id: str) -> bool:
+    job = _JOBS.get(job_id)
+    if job is None:
+        return False
+    job.cancel_requested = True
+    return True
+
+
+def build_combined_csv(job_id: str) -> str:
+    job = _JOBS.get(job_id)
+    if job is None:
+        raise ValueError("job not found")
+    if not job.tables:
+        raise ValueError("no tables")
+    parts: list[str] = []
+    for i, t in enumerate(job.tables, start=1):
+        parts.append(f"# Table {i} (page {t.page_index + 1})")
+        parts.append(t.csv.rstrip())
+        parts.append("")  # blank line separator
+    return "\n".join(parts).rstrip() + "\n"
 
 
 def build_page_csv_zip(job_id: str, page_index: int) -> bytes:

@@ -213,6 +213,29 @@ def get_table_image(job_id: str, table_index: int):
     return FileResponse(str(path), media_type="image/png")
 
 
+@api.post("/api/jobs/{job_id}/cancel")
+def cancel_job(job_id: str):
+    ok = jobsvc.request_cancel(job_id)
+    if not ok:
+        raise HTTPException(404, "job not found")
+    return {"cancel_requested": True}
+
+
+@api.get("/api/jobs/{job_id}/csv")
+def download_combined_csv(job_id: str):
+    try:
+        data = jobsvc.build_combined_csv(job_id)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    return Response(
+        content=data,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f'attachment; filename="tables_{job_id}.csv"',
+        },
+    )
+
+
 @api.get("/api/jobs/{job_id}/download")
 def download_zip(job_id: str):
     try:

@@ -8,9 +8,11 @@ import QuadEditor, {
 } from "@/components/QuadEditor";
 import ImageResults from "@/components/ImageResults";
 import {
+  cancelJob,
   createJob,
   detectPages,
   getJobStatus,
+  jobCsvUrl,
   jobZipUrl,
   pageImageUrl,
   startRecognize,
@@ -18,7 +20,7 @@ import {
   type JobStatus,
 } from "@/lib/api";
 import { useDemoStore, type PerPageState, type Step } from "@/lib/demoStore";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export default function DemoPage() {
   const {
@@ -43,6 +45,35 @@ export default function DemoPage() {
     reset,
     pollRef,
   } = useDemoStore();
+
+  const [pageInput, setPageInput] = useState("");
+  useEffect(() => {
+    setPageInput(String(currentPage + 1));
+  }, [currentPage]);
+
+  function jumpToPageFromInput() {
+    if (!job) return;
+    const n = parseInt(pageInput, 10);
+    if (isNaN(n)) return;
+    const clamped = Math.max(1, Math.min(job.pages.length, n));
+    setCurrentPage(clamped - 1);
+  }
+
+  async function handleCancel() {
+    if (!job || !busy) return;
+    if (busy === "upload") {
+      // The upload fetch already ran by the time poll/recognize starts;
+      // we can't abort the streamed body retroactively. Just clear UI busy.
+      setBusy(null);
+      return;
+    }
+    try {
+      await cancelJob(job.job_id);
+    } catch {}
+    if (pollRef.current) clearInterval(pollRef.current);
+    setBusy(null);
+    setErrorMsg("Cancelled.");
+  }
 
   // ---------- step 1 → 2 : upload only (no auto-detect) ----------
   async function handleUpload() {
@@ -203,6 +234,10 @@ export default function DemoPage() {
             });
             if (s.error) setErrorMsg(`Some tables failed: ${s.error}`);
             setBusy(null);
+          } else if (s.status === "cancelled") {
+            if (pollRef.current) clearInterval(pollRef.current);
+            setErrorMsg("Cancelled.");
+            setBusy(null);
           } else if (s.status === "error") {
             if (pollRef.current) clearInterval(pollRef.current);
             setErrorMsg(s.error ?? "Recognition failed.");
@@ -227,6 +262,18 @@ export default function DemoPage() {
     },
     [],
   );
+
+  // Preload neighbor page images so arrow nav is instant.
+  useEffect(() => {
+    if (!job) return;
+    const targets = [currentPage - 1, currentPage + 1].filter(
+      (i) => i >= 0 && i < job.pages.length,
+    );
+    for (const i of targets) {
+      const img = new Image();
+      img.src = pageImageUrl(job.job_id, i);
+    }
+  }, [job, currentPage]);
 
   // Arrow keys navigate pages while in review
   useEffect(() => {
@@ -297,92 +344,111 @@ export default function DemoPage() {
 
       {step === "review" && job && ps && (
         <div className="space-y-5">
-          <div className="glass rounded-2xl p-5 flex items-center justify-center gap-4 flex-wrap">
-            <button
-              onClick={() => setCurrentPage((i: number) => Math.max(0, i - 1))}
-              disabled={currentPage === 0}
-              className="px-3 py-1.5 rounded-lg border border-cyan/30 bg-[rgba(0,212,255,0.06)] hover:bg-[rgba(0,212,255,0.14)] hover:border-cyan disabled:opacity-30 text-sm text-cyan"
-            >
-              ← Prev
-            </button>
-            <span className="font-mono text-sm text-text text-center min-w-[10rem]">
-              Image {currentPage + 1} / {job.pages.length}
-            </span>
-            <button
-              onClick={() =>
-                setCurrentPage((i: number) =>
-                  Math.min(job.pages.length - 1, i + 1),
-                )
-              }
-              disabled={currentPage === job.pages.length - 1}
-              className="px-3 py-1.5 rounded-lg border border-cyan/30 bg-[rgba(0,212,255,0.06)] hover:bg-[rgba(0,212,255,0.14)] hover:border-cyan disabled:opacity-30 text-sm text-cyan"
-            >
-              Next →
-            </button>
-            <PageStatusBadge state={ps} />
-            <span className="text-xs text-muted font-mono ml-4">
-              {detectedCount} parsed · {recognizedCount} confirmed
-            </span>
-          </div>
-
-          {/* Step 1 — detect */}
-          <div className="glass rounded-2xl p-4 flex items-center justify-center gap-3 flex-wrap">
-            <span className="text-xs uppercase tracking-wider text-muted-2">
-              Step 1 — Detect tables
-            </span>
-            <button
-              onClick={() => runDetection("one")}
-              disabled={busy !== null || ps.detected || ps.recognized}
-              className="px-4 py-2 rounded-lg bg-sky-500/15 border border-sky-400/40 hover:bg-sky-500/25 text-sky-100 light:text-sky-700 text-sm font-bold disabled:opacity-40"
-              title={
-                ps.detected
-                  ? "Already parsed — adjust boxes or click Confirm"
-                  : ""
-              }
-            >
-              {busy === "detect-one"
-                ? "Parsing…"
-                : ps.detected
-                  ? "✓ Parsed"
-                  : "Parse this image"}
-            </button>
-            <button
-              onClick={() => runDetection("all")}
-              disabled={busy !== null || undetectedCount === 0}
-              className="px-4 py-2 rounded-lg bg-indigo-500/15 border border-indigo-400/40 hover:bg-indigo-500/25 text-indigo-100 light:text-indigo-700 text-sm font-bold disabled:opacity-40"
-              title={
-                undetectedCount === 0 ? "All images already parsed" : ""
-              }
-            >
-              {busy === "detect-all"
-                ? "Parsing all…"
-                : `Parse all (${undetectedCount})`}
-            </button>
-            {ps.detected && !ps.recognized && (
-              <span className="text-xs text-muted-2 font-mono">
-                {ps.rects.length} box{ps.rects.length === 1 ? "" : "es"} — adjust below.
+          {/* page nav with scrubber */}
+          <div className="glass rounded-2xl p-4 flex flex-col gap-3">
+            <div className="flex items-center justify-center gap-3 flex-wrap">
+              <button
+                onClick={() => setCurrentPage((i: number) => Math.max(0, i - 1))}
+                disabled={currentPage === 0}
+                className="px-3 py-1.5 rounded-lg border border-cyan/30 bg-[rgba(0,212,255,0.06)] hover:bg-[rgba(0,212,255,0.14)] hover:border-cyan disabled:opacity-30 text-sm text-cyan"
+              >
+                ← Prev
+              </button>
+              <span className="font-mono text-sm text-text text-center inline-flex items-center gap-1">
+                Image
+                <input
+                  type="number"
+                  min={1}
+                  max={job.pages.length}
+                  value={pageInput}
+                  onChange={(e) => setPageInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") jumpToPageFromInput();
+                  }}
+                  onBlur={jumpToPageFromInput}
+                  className="w-16 text-center bg-overlay border border-border rounded-md px-1 py-0.5 font-mono text-text focus:outline-none focus:border-cyan"
+                />
+                / {job.pages.length}
               </span>
+              <button
+                onClick={() =>
+                  setCurrentPage((i: number) =>
+                    Math.min(job.pages.length - 1, i + 1),
+                  )
+                }
+                disabled={currentPage === job.pages.length - 1}
+                className="px-3 py-1.5 rounded-lg border border-cyan/30 bg-[rgba(0,212,255,0.06)] hover:bg-[rgba(0,212,255,0.14)] hover:border-cyan disabled:opacity-30 text-sm text-cyan"
+              >
+                Next →
+              </button>
+              <PageStatusBadge state={ps} />
+              <span className="text-xs text-muted font-mono">
+                {detectedCount} parsed · {recognizedCount} confirmed
+              </span>
+            </div>
+            {job.pages.length > 1 && (
+              <input
+                type="range"
+                min={0}
+                max={job.pages.length - 1}
+                value={currentPage}
+                onChange={(e) => setCurrentPage(parseInt(e.target.value, 10))}
+                className="w-full accent-cyan"
+                aria-label="Page scrubber"
+              />
             )}
           </div>
 
-          {/* editor */}
-          <div className="glass rounded-2xl p-5">
-            <div className="flex items-center justify-center mb-3 flex-wrap gap-3">
-              <p className="text-xs uppercase tracking-wider text-muted text-center">
-                {ps.recognized
-                  ? "✓ Confirmed — locked. Use arrows to navigate."
+          {/* editor card — Step 1 detect controls + box pills + image */}
+          <div className="glass rounded-2xl p-5 space-y-3">
+            <div className="flex items-center justify-center gap-3 flex-wrap">
+              <span className="text-xs uppercase tracking-wider text-muted-2">
+                Step 1 — Detect tables
+              </span>
+              <button
+                onClick={() => runDetection("one")}
+                disabled={busy !== null || ps.detected || ps.recognized}
+                className="px-4 py-2 rounded-lg bg-sky-500/15 border border-sky-400/40 hover:bg-sky-500/25 text-sky-100 light:text-sky-700 text-sm font-bold disabled:opacity-40"
+                title={
+                  ps.detected
+                    ? "Already parsed — adjust boxes or click Confirm"
+                    : ""
+                }
+              >
+                {busy === "detect-one"
+                  ? "Parsing…"
                   : ps.detected
-                    ? `Drag edges/rotate to fit. ${ps.rects.length} box(es).`
-                    : "Not parsed yet — click “Parse this image” to detect tables."}
-              </p>
+                    ? "✓ Parsed"
+                    : "Parse this image"}
+              </button>
+              <button
+                onClick={() => runDetection("all")}
+                disabled={busy !== null || undetectedCount === 0}
+                className="px-4 py-2 rounded-lg bg-indigo-500/15 border border-indigo-400/40 hover:bg-indigo-500/25 text-indigo-100 light:text-indigo-700 text-sm font-bold disabled:opacity-40"
+                title={
+                  undetectedCount === 0 ? "All images already parsed" : ""
+                }
+              >
+                {busy === "detect-all"
+                  ? "Parsing all…"
+                  : `Parse all (${undetectedCount})`}
+              </button>
               <button
                 onClick={() => addRect(currentPage)}
                 disabled={ps.recognized}
-                className="px-3 py-1 rounded-lg border border-emerald-400/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-200 light:text-emerald-700 text-xs disabled:opacity-40"
+                className="px-3 py-1.5 rounded-lg border border-emerald-400/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-200 light:text-emerald-700 text-xs disabled:opacity-40"
               >
                 + Add box
               </button>
             </div>
+
+            <p className="text-xs uppercase tracking-wider text-muted text-center">
+              {ps.recognized
+                ? "✓ Confirmed — locked. Use arrows to navigate."
+                : ps.detected
+                  ? `Drag edges/rotate to fit. ${ps.rects.length} box(es).`
+                  : "Not parsed yet — click “Parse this image” to detect tables."}
+            </p>
 
             {ps.detected && (
               <div className="flex flex-wrap justify-center gap-2 mb-4">
@@ -463,6 +529,14 @@ export default function DemoPage() {
                 {Math.round(confirmProgress * 100)}%
               </span>
             )}
+            {busy && (
+              <button
+                onClick={handleCancel}
+                className="px-3 py-2 rounded-lg bg-red-500/15 border border-red-400/40 hover:bg-red-500/25 text-red-200 light:text-red-700 text-sm font-bold"
+              >
+                Cancel
+              </button>
+            )}
           </div>
 
           <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -473,12 +547,20 @@ export default function DemoPage() {
               ← Start over
             </button>
             {tables.length > 0 && (
-              <a
-                href={jobZipUrl(job.job_id)}
-                className="px-4 py-2 rounded-xl bg-amber-500/15 border border-amber-400/40 hover:bg-amber-500/25 text-amber-100 light:text-amber-700 text-sm font-bold"
-              >
-                Download all CSVs (ZIP)
-              </a>
+              <div className="flex items-center gap-2 flex-wrap">
+                <a
+                  href={jobCsvUrl(job.job_id)}
+                  className="px-4 py-2 rounded-xl bg-emerald-500/15 border border-emerald-400/40 hover:bg-emerald-500/25 text-emerald-200 light:text-emerald-700 text-sm font-bold"
+                >
+                  Download one CSV
+                </a>
+                <a
+                  href={jobZipUrl(job.job_id)}
+                  className="px-4 py-2 rounded-xl bg-amber-500/15 border border-amber-400/40 hover:bg-amber-500/25 text-amber-100 light:text-amber-700 text-sm font-bold"
+                >
+                  Download ZIP of CSVs
+                </a>
+              </div>
             )}
           </div>
 

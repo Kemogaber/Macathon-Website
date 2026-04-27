@@ -74,7 +74,7 @@ export interface TableData {
 }
 
 export interface JobStatus {
-  status: "detected" | "running" | "done" | "error";
+  status: "detected" | "running" | "done" | "error" | "cancelled";
   progress: number;
   error: string | null;
   tables: TableData[];
@@ -107,6 +107,16 @@ export function tableImageUrl(jobId: string, tableIndex: number): string {
 
 export function jobZipUrl(jobId: string): string {
   return `${API_URL}/api/jobs/${jobId}/download`;
+}
+
+export function jobCsvUrl(jobId: string): string {
+  return `${API_URL}/api/jobs/${jobId}/csv`;
+}
+
+export async function cancelJob(jobId: string): Promise<void> {
+  await fetch(`${API_URL}/api/jobs/${jobId}/cancel`, { method: "POST" }).catch(
+    () => {},
+  );
 }
 
 export function pageCsvZipUrl(jobId: string, pageIndex: number): string {

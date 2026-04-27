@@ -116,9 +116,14 @@ export default function QuadEditor({
   const [tool, setTool] = useState<Tool>("pan");
   const [imgLoaded, setImgLoaded] = useState(false);
 
-  // reset loaded flag when image URL changes
+  // reset loaded flag when image URL changes; if already cached, flip true immediately.
   useEffect(() => {
-    setImgLoaded(false);
+    const el = imgRef.current;
+    if (el && el.src && el.complete && el.naturalWidth > 0) {
+      setImgLoaded(true);
+    } else {
+      setImgLoaded(false);
+    }
   }, [imageUrl]);
 
   // Zoom toward a client-coordinate point, keeping it under the cursor.
@@ -390,14 +395,14 @@ export default function QuadEditor({
             ref={imgRef}
             src={imageUrl}
             alt="page"
-            className={`block select-none transition-opacity ${imgLoaded ? "opacity-100" : "opacity-0"}`}
+            className="block select-none"
             draggable={false}
             style={{ width: renderedW, height: renderedH }}
             onLoad={() => setImgLoaded(true)}
           />
 
           <svg
-            className={`absolute inset-0 pointer-events-none transition-opacity ${imgLoaded ? "opacity-100" : "opacity-0"}`}
+            className={`absolute inset-0 pointer-events-none ${imgLoaded ? "" : "invisible"}`}
             width={renderedW}
             height={renderedH}
             viewBox={`0 0 ${imageWidth} ${imageHeight}`}

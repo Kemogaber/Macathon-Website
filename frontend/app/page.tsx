@@ -18,7 +18,7 @@ const features = [
 const stats = [
   { value: "JPEG · PNG · WebP", label: "Supported formats" },
   { value: "HTML & CSV", label: "Output formats" },
-  { value: "< 2s", label: "Avg. processing time" },
+  { value: "< 70s", label: "Avg. processing time" },
   { value: "Multi-table", label: "Per image" },
 ];
 

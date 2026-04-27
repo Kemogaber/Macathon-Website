@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { pageCsvZipUrl, tableImageUrl, type TableData } from "@/lib/api";
+import EditableTable from "@/components/EditableTable";
+import {
+  pageCsvZipUrl,
+  tableImageUrl,
+  type CellData,
+  type TableData,
+} from "@/lib/api";
 
 interface Props {
   jobId: string;
@@ -11,6 +17,24 @@ interface Props {
 interface ImageGroup {
   pageIndex: number;
   tables: TableData[];
+}
+
+function escapeCsv(v: string): string {
+  if (/[",\n\r]/.test(v)) return `"${v.replace(/"/g, '""')}"`;
+  return v;
+}
+
+function csvFromCells(cells: CellData[], fallback: string): string {
+  if (!cells.length) return fallback;
+  const rows = Math.max(...cells.map((c) => c.row + (c.rowspan ?? 1)));
+  const cols = Math.max(...cells.map((c) => c.col + (c.colspan ?? 1)));
+  const grid: string[][] = Array.from({ length: rows }, () =>
+    Array(cols).fill(""),
+  );
+  for (const c of cells) {
+    if (c.row < rows && c.col < cols) grid[c.row][c.col] = c.text ?? "";
+  }
+  return grid.map((row) => row.map(escapeCsv).join(",")).join("\n");
 }
 
 export default function ImageResults({ jobId, tables }: Props) {
@@ -31,12 +55,28 @@ export default function ImageResults({ jobId, tables }: Props) {
 
   const [activeImg, setActiveImg] = useState(0);
   const [activeTable, setActiveTable] = useState(0);
+  const [showConfidence, setShowConfidence] = useState(true);
+  const [edits, setEdits] = useState<Record<number, CellData[]>>({});
+
+  useEffect(() => {
+    setEdits((prev) => {
+      const next = { ...prev };
+      for (const t of tables) {
+        if (!next[t.index] && t.cells)
+          next[t.index] = t.cells.map((c) => ({ ...c }));
+      }
+      return next;
+    });
+  }, [tables]);
+
   const safeImg = Math.min(activeImg, Math.max(0, groups.length - 1));
   const group = groups[safeImg];
-  const safeTable = Math.min(activeTable, Math.max(0, (group?.tables.length ?? 1) - 1));
+  const safeTable = Math.min(
+    activeTable,
+    Math.max(0, (group?.tables.length ?? 1) - 1),
+  );
   const t = group?.tables[safeTable];
 
-  // reset table index when image changes
   useEffect(() => {
     setActiveTable(0);
   }, [safeImg]);
@@ -49,11 +89,35 @@ export default function ImageResults({ jobId, tables }: Props) {
     );
   }
 
+  const editedCells = edits[t.index] ?? t.cells ?? [];
   const tableCount = group.tables.length;
+
+  function setCellText(rowIdx: number, colIdx: number, text: string) {
+    setEdits((prev) => {
+      const list = (prev[t.index] ?? t.cells ?? []).map((c) =>
+        c.row === rowIdx && c.col === colIdx ? { ...c, text } : c,
+      );
+      return { ...prev, [t.index]: list };
+    });
+  }
+
+  function downloadString(content: string, name: string, mime: string) {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function downloadEditedCsv() {
+    const csv = csvFromCells(editedCells, t.csv);
+    downloadString(csv, `table_${t.index}.csv`, "text/csv");
+  }
 
   return (
     <div className="glass rounded-2xl p-6 gradient-border">
-      {/* Image-level nav */}
       <div className="flex items-center justify-center gap-3 mb-4 flex-wrap">
         <button
           onClick={() => setActiveImg((i) => Math.max(0, i - 1))}
@@ -75,14 +139,11 @@ export default function ImageResults({ jobId, tables }: Props) {
         >
           Next image →
         </button>
-        <span className="ml-3">
-          <CsvDownloadMenu jobId={jobId} group={group} />
-        </span>
+        <CsvDownloadMenu jobId={jobId} group={group} edits={edits} />
       </div>
 
-      {/* Table-level nav (only if more than one) */}
       {tableCount > 1 && (
-        <div className="flex items-center justify-center gap-2 mb-5">
+        <div className="flex items-center justify-center gap-2 mb-4">
           <button
             onClick={() => setActiveTable((i) => Math.max(0, i - 1))}
             disabled={safeTable === 0}
@@ -103,7 +164,8 @@ export default function ImageResults({ jobId, tables }: Props) {
         </div>
       )}
 
-      {/* PNG | HTML side-by-side */}
+      <ConfidenceSummary table={t} />
+
       <div className="grid md:grid-cols-2 gap-5">
         <div>
           <p className="text-xs uppercase tracking-wider text-muted mb-2 text-center">
@@ -117,23 +179,60 @@ export default function ImageResults({ jobId, tables }: Props) {
           />
         </div>
         <div>
-          <p className="text-xs uppercase tracking-wider text-muted mb-2 text-center">
-            Recognized HTML
-            <span className="ml-2 text-muted-2 normal-case">
-              · {t.cell_count} cells
-            </span>
-          </p>
-          <div
-            className="rounded-lg border border-border bg-input p-3 max-h-[28rem] overflow-auto text-sm text-text [&_table]:w-full [&_th]:bg-overlay [&_th,&_td]:px-2 [&_th,&_td]:py-1 [&_th,&_td]:border [&_th,&_td]:border-border"
-            dangerouslySetInnerHTML={{ __html: t.html }}
-          />
+          <div className="flex items-center justify-between mb-2 gap-2">
+            <p className="text-xs uppercase tracking-wider text-muted text-center flex-1">
+              Recognized data
+              <span className="ml-2 text-muted-2 normal-case">
+                · click cells to edit · {t.cell_count} cells
+              </span>
+            </p>
+            <label className="flex items-center gap-1.5 text-xs text-muted-2 font-mono cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showConfidence}
+                onChange={(e) => setShowConfidence(e.target.checked)}
+                className="accent-cyan"
+              />
+              Confidence
+            </label>
+          </div>
+          {editedCells.length ? (
+            <EditableTable
+              cells={editedCells}
+              onChange={setCellText}
+              showConfidence={showConfidence}
+            />
+          ) : (
+            <div
+              className="rounded-lg border border-border bg-input p-3 max-h-[28rem] overflow-auto text-sm text-text [&_table]:w-full [&_th]:bg-overlay [&_th,&_td]:px-2 [&_th,&_td]:py-1 [&_th,&_td]:border [&_th,&_td]:border-border"
+              dangerouslySetInnerHTML={{ __html: t.html }}
+            />
+          )}
         </div>
+      </div>
+
+      <div className="flex items-center justify-end gap-2 mt-4">
+        <button
+          onClick={downloadEditedCsv}
+          className="px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-400/40 hover:bg-emerald-500/25 text-xs font-mono text-emerald-200 light:text-emerald-700"
+          title="Download this table as CSV (with your edits)"
+        >
+          Download this table’s CSV
+        </button>
       </div>
     </div>
   );
 }
 
-function CsvDownloadMenu({ jobId, group }: { jobId: string; group: ImageGroup }) {
+function CsvDownloadMenu({
+  jobId,
+  group,
+  edits,
+}: {
+  jobId: string;
+  group: ImageGroup;
+  edits: Record<number, CellData[]>;
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
   const single = group.tables.length === 1;
@@ -147,7 +246,7 @@ function CsvDownloadMenu({ jobId, group }: { jobId: string; group: ImageGroup })
     return () => window.removeEventListener("mousedown", onClick);
   }, [open]);
 
-  function downloadSingle(content: string, name: string) {
+  function downloadString(content: string, name: string) {
     const blob = new Blob([content], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -158,17 +257,23 @@ function CsvDownloadMenu({ jobId, group }: { jobId: string; group: ImageGroup })
     setOpen(false);
   }
 
+  function csvFor(tt: TableData): string {
+    return csvFromCells(edits[tt.index] ?? tt.cells ?? [], tt.csv);
+  }
+
   function downloadCombined() {
     const combined = group.tables
-      .map((t, i) => `# Table ${i + 1}\n${t.csv}`)
+      .map((tt, i) => `# Table ${i + 1}\n${csvFor(tt)}`)
       .join("\n\n");
-    downloadSingle(combined, `page_${group.pageIndex + 1}_combined.csv`);
+    downloadString(combined, `page_${group.pageIndex + 1}_combined.csv`);
   }
 
   if (single) {
     return (
       <button
-        onClick={() => downloadSingle(group.tables[0].csv, `table_${group.tables[0].index}.csv`)}
+        onClick={() =>
+          downloadString(csvFor(group.tables[0]), `table_${group.tables[0].index}.csv`)
+        }
         className="px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-400/40 hover:bg-emerald-500/25 text-xs font-mono text-emerald-200 light:text-emerald-700"
       >
         Download CSV
@@ -192,7 +297,7 @@ function CsvDownloadMenu({ jobId, group }: { jobId: string; group: ImageGroup })
           >
             One combined CSV
             <div className="text-muted text-[10px] mt-0.5">
-              all {group.tables.length} tables in one file
+              all {group.tables.length} tables in one file (with edits)
             </div>
           </button>
           <a
@@ -203,11 +308,49 @@ function CsvDownloadMenu({ jobId, group }: { jobId: string; group: ImageGroup })
           >
             ZIP of CSVs
             <div className="text-muted text-[10px] mt-0.5">
-              one file per table
+              one file per table — server-side originals (no edits)
             </div>
           </a>
         </div>
       )}
     </div>
+  );
+}
+
+function ConfidenceSummary({ table }: { table: TableData }) {
+  const items = [
+    { label: "Detection", value: table.detection_score },
+    { label: "Structure", value: table.tsr_confidence },
+    { label: "OCR", value: table.ocr_confidence },
+  ].filter((i) => typeof i.value === "number" && i.value !== null);
+  if (!items.length) return null;
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
+      {items.map((it) => (
+        <ConfidenceBadge
+          key={it.label}
+          label={it.label}
+          value={it.value as number}
+        />
+      ))}
+    </div>
+  );
+}
+
+function ConfidenceBadge({ label, value }: { label: string; value: number }) {
+  const pct = Math.round(value * 100);
+  const tone =
+    value >= 0.85
+      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300 light:text-emerald-700"
+      : value >= 0.6
+        ? "border-yellow-500/40 bg-yellow-500/10 text-yellow-300 light:text-yellow-700"
+        : "border-red-500/40 bg-red-500/10 text-red-300 light:text-red-700";
+  return (
+    <span
+      className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-mono ${tone}`}
+    >
+      {label}
+      <span className="font-bold">{pct}%</span>
+    </span>
   );
 }
