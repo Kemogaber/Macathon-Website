@@ -223,13 +223,23 @@ export default function DemoPage() {
     setErrorMsg("");
     try {
       await startRecognize(job.job_id, confirmed);
-      pollRef.current = setInterval(async () => {
+      let interval: ReturnType<typeof setInterval> | null = null;
+      const finish = () => {
+        // Stop further ticks AND mark this batch finalized so any in-flight
+        // getJobStatus calls already in flight skip their terminal branch.
+        if (interval !== null) clearInterval(interval);
+        interval = null;
+        pollRef.current = null;
+      };
+      interval = setInterval(async () => {
+        if (interval === null) return;
         try {
           const s: JobStatus = await getJobStatus(job.job_id);
+          if (interval === null) return; // raced — another tick already handled it
           setConfirmProgress(s.progress);
           setTables(s.tables);
           if (s.status === "done") {
-            if (pollRef.current) clearInterval(pollRef.current);
+            finish();
             setPageStates((prev) => {
               const next = prev.map((p) => ({ ...p }));
               for (const i of targetPages) next[i].recognized = true;
@@ -247,24 +257,26 @@ export default function DemoPage() {
             }
             setBusy(null);
           } else if (s.status === "cancelled") {
-            if (pollRef.current) clearInterval(pollRef.current);
+            finish();
             setErrorMsg("Cancelled.");
             setBusy(null);
           } else if (s.status === "error") {
-            if (pollRef.current) clearInterval(pollRef.current);
+            finish();
             const msg = s.error ?? "Recognition failed.";
             setErrorMsg(msg);
             toast.error("Recognition failed", msg);
             setBusy(null);
           }
         } catch (e) {
-          if (pollRef.current) clearInterval(pollRef.current);
+          if (interval === null) return;
+          finish();
           const msg = e instanceof Error ? e.message : "Polling failed.";
           setErrorMsg(msg);
           toast.error("Polling failed", msg);
           setBusy(null);
         }
       }, 800);
+      pollRef.current = interval;
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : "Failed to start parsing.");
       setBusy(null);
