@@ -1,4 +1,5 @@
 import Link from "next/link";
+import BeforeAfterShowcase from "@/components/BeforeAfterShowcase";
 
 const features = [
   {
@@ -71,6 +72,8 @@ export default function HomePage() {
           </Link>
         </div>
       </section>
+
+      <BeforeAfterShowcase />
 
       {/* Stats strip */}
       <section className="border-y border-border bg-white/[0.015]">

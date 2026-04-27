@@ -222,6 +222,11 @@ export default function UploadZone({ files, onChange, disabled }: Props) {
           <span>⚠</span> {error}
         </p>
       )}
+
+      <p className="text-center text-[11px] font-mono text-muted-2 flex items-center justify-center gap-1.5">
+        <span aria-hidden>🔒</span>
+        Your files are processed in memory and deleted after extraction. Nothing is stored or shared.
+      </p>
     </div>
   );
 }

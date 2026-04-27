@@ -11,6 +11,9 @@ import {
 interface Props {
   jobId?: string;
   attachedTableCount?: number;
+  /** Show a one-time speech bubble next to the closed icon. Hides on click,
+   *  on dismiss, or once the user opens the chat. */
+  nudge?: string | null;
 }
 
 const STORAGE_KEY = "tablex.chat.v1";
@@ -40,12 +43,18 @@ function saveMessages(msgs: ChatMessage[]) {
   }
 }
 
-export default function ChatWidget({ jobId, attachedTableCount = 0 }: Props) {
+export default function ChatWidget({
+  jobId,
+  attachedTableCount = 0,
+  nudge = null,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nudgeDismissed, setNudgeDismissed] = useState(false);
+  const showNudge = !!nudge && !open && !nudgeDismissed;
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -144,13 +153,36 @@ export default function ChatWidget({ jobId, attachedTableCount = 0 }: Props) {
   return (
     <>
       {!open && (
-        <button
-          onClick={() => setOpen(true)}
-          className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-cyan text-black shadow-xl hover:scale-105 transition-transform flex items-center justify-center text-xl font-bold"
-          aria-label="Open assistant"
-        >
-          💬
-        </button>
+        <>
+          {showNudge && (
+            <div className="fixed bottom-24 right-6 z-40 max-w-[260px] rounded-xl bg-background border border-cyan/40 shadow-2xl p-3 animate-in fade-in slide-in-from-bottom-2">
+              <div className="flex items-start gap-2">
+                <div className="flex-1 text-xs text-text leading-snug">{nudge}</div>
+                <button
+                  onClick={() => setNudgeDismissed(true)}
+                  aria-label="Dismiss"
+                  className="text-muted-2 hover:text-text leading-none px-1"
+                >
+                  ×
+                </button>
+              </div>
+              <div
+                aria-hidden
+                className="absolute -bottom-1.5 right-6 w-3 h-3 rotate-45 bg-background border-r border-b border-cyan/40"
+              />
+            </div>
+          )}
+          <button
+            onClick={() => {
+              setNudgeDismissed(true);
+              setOpen(true);
+            }}
+            className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-cyan text-black shadow-xl hover:scale-105 transition-transform flex items-center justify-center text-xl font-bold"
+            aria-label="Open assistant"
+          >
+            💬
+          </button>
+        </>
       )}
 
       {open && (

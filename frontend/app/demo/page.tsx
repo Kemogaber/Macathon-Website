@@ -60,6 +60,25 @@ export default function DemoPage() {
     setPageInput(String(currentPage + 1));
   }, [currentPage]);
 
+  // Proactive chat nudge — only fires once per browser session, on the upload
+  // step, after 25s with no progress. Skipped if user already dismissed it,
+  // already uploaded, or already opened the chat (sessionStorage flag).
+  const [chatNudge, setChatNudge] = useState<string | null>(null);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (step !== "upload" || job) return;
+    if (window.sessionStorage.getItem("tablex.chatNudgeShown") === "1") return;
+    const t = window.setTimeout(() => {
+      setChatNudge(
+        "Need help getting started? Ask me what file types work, how to handle PDFs, or anything else 👋",
+      );
+      window.sessionStorage.setItem("tablex.chatNudgeShown", "1");
+      // Auto-hide after 12s if not engaged.
+      window.setTimeout(() => setChatNudge(null), 12000);
+    }, 25000);
+    return () => window.clearTimeout(t);
+  }, [step, job]);
+
   function jumpToPageFromInput() {
     if (!job) return;
     const n = parseInt(pageInput, 10);
@@ -751,7 +770,11 @@ export default function DemoPage() {
         </div>
       )}
 
-      <ChatWidget jobId={job?.job_id} attachedTableCount={tables.length} />
+      <ChatWidget
+        jobId={job?.job_id}
+        attachedTableCount={tables.length}
+        nudge={chatNudge}
+      />
     </div>
   );
 }
