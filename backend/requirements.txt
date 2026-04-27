@@ -19,3 +19,7 @@ ultralytics>=8.3
 # OCR
 paddlepaddle>=3.0
 paddleocr>=3.0
+
+# extras
+openpyxl>=3.1
+psutil>=5.9

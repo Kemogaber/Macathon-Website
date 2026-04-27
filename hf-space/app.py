@@ -63,7 +63,9 @@ class DetectRequest(BaseModel):
 # ---------- Health / root ----------
 @api.get("/api/health")
 def health():
-    return {"status": "ok", "model": "yolov8 + table-transformer + paddleocr"}
+    info = jobsvc.get_health()
+    info["model"] = "yolov8 + table-transformer + paddleocr"
+    return info
 
 
 @api.get("/api/metrics")
@@ -244,6 +246,36 @@ def download_combined_csv(job_id: str):
         media_type="text/csv",
         headers={
             "Content-Disposition": f'attachment; filename="tables_{job_id}.csv"',
+        },
+    )
+
+
+@api.get("/api/jobs/{job_id}/xlsx")
+def download_xlsx(job_id: str):
+    try:
+        data = jobsvc.build_combined_xlsx(job_id)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    return Response(
+        content=data,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f'attachment; filename="tables_{job_id}.xlsx"',
+        },
+    )
+
+
+@api.get("/api/jobs/{job_id}/html")
+def download_html(job_id: str):
+    try:
+        data = jobsvc.build_combined_html(job_id)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    return Response(
+        content=data,
+        media_type="text/html; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="tables_{job_id}.html"',
         },
     )
 

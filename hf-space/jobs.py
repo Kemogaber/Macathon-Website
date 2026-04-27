@@ -394,6 +394,115 @@ def request_cancel(job_id: str) -> bool:
     return True
 
 
+def build_combined_xlsx(job_id: str) -> bytes:
+    """One workbook, one sheet per table. Sheet names: 'Table 1', 'Table 2', ..."""
+    from openpyxl import Workbook  # local import: optional dep
+
+    job = _JOBS.get(job_id)
+    if job is None:
+        raise ValueError("job not found")
+    if not job.tables:
+        raise ValueError("no tables")
+
+    wb = Workbook()
+    wb.remove(wb.active)
+    for i, t in enumerate(job.tables, start=1):
+        sheet_name = f"Table {i}"[:31]  # excel limit
+        ws = wb.create_sheet(title=sheet_name)
+        # Build a 2D grid from cells (handles merges by writing top-left only).
+        cells = t.cells or []
+        if cells:
+            max_row = max(c["row"] + c.get("rowspan", 1) for c in cells)
+            max_col = max(c["col"] + c.get("colspan", 1) for c in cells)
+            grid = [[""] * max_col for _ in range(max_row)]
+            merges: list[tuple[int, int, int, int]] = []
+            for c in cells:
+                r0, c0 = c["row"], c["col"]
+                rs, cs = c.get("rowspan", 1), c.get("colspan", 1)
+                grid[r0][c0] = c.get("text", "") or ""
+                if rs > 1 or cs > 1:
+                    merges.append((r0 + 1, c0 + 1, r0 + rs, c0 + cs))
+            for r_idx, row in enumerate(grid, start=1):
+                for c_idx, val in enumerate(row, start=1):
+                    ws.cell(row=r_idx, column=c_idx, value=val)
+            for r1, c1, r2, c2 in merges:
+                if r1 != r2 or c1 != c2:
+                    ws.merge_cells(start_row=r1, start_column=c1, end_row=r2, end_column=c2)
+        else:
+            # Fallback to raw CSV parse if cells weren't serialized.
+            import csv as _csv
+            reader = _csv.reader(io.StringIO(t.csv))
+            for r_idx, row in enumerate(reader, start=1):
+                for c_idx, val in enumerate(row, start=1):
+                    ws.cell(row=r_idx, column=c_idx, value=val)
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+def build_combined_html(job_id: str) -> str:
+    """Single styled HTML page rendering every table back-to-back."""
+    job = _JOBS.get(job_id)
+    if job is None:
+        raise ValueError("job not found")
+    if not job.tables:
+        raise ValueError("no tables")
+
+    sections: list[str] = []
+    for i, t in enumerate(job.tables, start=1):
+        sections.append(
+            f'<section class="t"><h2>Table {i} '
+            f'<span class="meta">page {t.page_index + 1}</span></h2>'
+            f'{t.html}</section>'
+        )
+    body = "\n".join(sections)
+    return (
+        '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+        f'<title>Tables — job {job_id}</title>'
+        '<style>'
+        'body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;'
+        'background:#fafafa;color:#111;margin:0;padding:32px;}'
+        '.t{background:#fff;border:1px solid #e5e7eb;border-radius:8px;'
+        'padding:20px;margin-bottom:24px;box-shadow:0 1px 2px rgba(0,0,0,0.04);}'
+        'h2{margin:0 0 12px;font-size:16px;color:#111;}'
+        '.meta{color:#6b7280;font-weight:400;font-size:13px;margin-left:8px;}'
+        'table{border-collapse:collapse;width:auto;}'
+        'th,td{border:1px solid #d1d5db;padding:6px 10px;text-align:left;'
+        'vertical-align:top;font-size:13px;}'
+        'th{background:#f3f4f6;font-weight:600;}'
+        '</style></head><body>'
+        f'<h1>Extracted tables ({len(job.tables)})</h1>{body}'
+        '</body></html>'
+    )
+
+
+def get_health() -> dict:
+    """In-container health: cpu/ram/uptime + active jobs. Used by /api/health."""
+    info: dict = {
+        "status": "ok",
+        "uptime_s": int(time.time() - _METRICS["started_at"]),
+        "active_jobs": len(_JOBS),
+        "jobs_created": _METRICS["jobs_created"],
+        "jobs_succeeded": _METRICS["jobs_succeeded"],
+        "jobs_failed": _METRICS["jobs_failed"],
+    }
+    try:
+        import psutil
+        proc = psutil.Process()
+        # interval=None makes this non-blocking — returns delta since last call
+        # (first call is 0.0, subsequent calls reflect real CPU usage).
+        info["cpu_percent"] = round(psutil.cpu_percent(interval=None), 1)
+        vm = psutil.virtual_memory()
+        info["ram_percent"] = round(vm.percent, 1)
+        info["ram_used_mb"] = int(vm.used / (1024 * 1024))
+        info["ram_total_mb"] = int(vm.total / (1024 * 1024))
+        info["process_rss_mb"] = int(proc.memory_info().rss / (1024 * 1024))
+    except Exception as e:
+        info["psutil_error"] = str(e)
+    return info
+
+
 def build_combined_csv(job_id: str) -> str:
     job = _JOBS.get(job_id)
     if job is None:

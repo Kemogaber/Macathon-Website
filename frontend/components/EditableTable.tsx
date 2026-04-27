@@ -22,7 +22,7 @@ export default function EditableTable({ cells, onChange, showConfidence }: Props
 
   return (
     <div className="overflow-auto rounded-lg border border-border bg-input max-h-[28rem]">
-      <table className="w-full border-collapse text-sm text-text">
+      <table className="w-max min-w-full border-collapse text-sm text-text">
         <tbody>
           {Array.from({ length: rows }).map((_, r) => (
             <tr key={r}>
@@ -44,7 +44,7 @@ export default function EditableTable({ cells, onChange, showConfidence }: Props
                     <input
                       value={cell.text}
                       onChange={(e) => onChange(cell.row, cell.col, e.target.value)}
-                      className={`w-full bg-transparent px-2 py-1 outline-none focus:bg-cyan/10 ${
+                      className={`w-full min-w-32 bg-transparent px-2 py-1 outline-none focus:bg-cyan/10 ${
                         isHeader ? "font-semibold" : ""
                       }`}
                     />

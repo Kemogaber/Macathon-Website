@@ -57,6 +57,7 @@ class Job:
 
 _JOBS: dict[str, Job] = {}
 _LOCK = threading.Lock()
+_STARTED_AT = time.time()
 
 # Single-slot semaphore: inference (YOLO/TSR/OCR) is not safe to run in
 # parallel on the shared singleton models, and the HF Space only has 2 vCPU
@@ -304,6 +305,87 @@ def request_cancel(job_id: str) -> bool:
         return False
     job.cancel_requested = True
     return True
+
+
+def build_combined_xlsx(job_id: str) -> bytes:
+    """One workbook, one sheet per table. CSV-derived (backend/ doesn't track cells)."""
+    from openpyxl import Workbook
+    import csv as _csv
+
+    job = _JOBS.get(job_id)
+    if job is None:
+        raise ValueError("job not found")
+    if not job.tables:
+        raise ValueError("no tables")
+
+    wb = Workbook()
+    wb.remove(wb.active)
+    for i, t in enumerate(job.tables, start=1):
+        ws = wb.create_sheet(title=f"Table {i}"[:31])
+        reader = _csv.reader(io.StringIO(t.csv))
+        for r_idx, row in enumerate(reader, start=1):
+            for c_idx, val in enumerate(row, start=1):
+                ws.cell(row=r_idx, column=c_idx, value=val)
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+def build_combined_html(job_id: str) -> str:
+    """Single styled HTML page rendering every table back-to-back."""
+    job = _JOBS.get(job_id)
+    if job is None:
+        raise ValueError("job not found")
+    if not job.tables:
+        raise ValueError("no tables")
+
+    sections: list[str] = []
+    for i, t in enumerate(job.tables, start=1):
+        sections.append(
+            f'<section class="t"><h2>Table {i} '
+            f'<span class="meta">page {t.page_index + 1}</span></h2>'
+            f'{t.html}</section>'
+        )
+    body = "\n".join(sections)
+    return (
+        '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+        f'<title>Tables — job {job_id}</title>'
+        '<style>'
+        'body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;'
+        'background:#fafafa;color:#111;margin:0;padding:32px;}'
+        '.t{background:#fff;border:1px solid #e5e7eb;border-radius:8px;'
+        'padding:20px;margin-bottom:24px;box-shadow:0 1px 2px rgba(0,0,0,0.04);}'
+        'h2{margin:0 0 12px;font-size:16px;color:#111;}'
+        '.meta{color:#6b7280;font-weight:400;font-size:13px;margin-left:8px;}'
+        'table{border-collapse:collapse;width:auto;}'
+        'th,td{border:1px solid #d1d5db;padding:6px 10px;text-align:left;'
+        'vertical-align:top;font-size:13px;}'
+        'th{background:#f3f4f6;font-weight:600;}'
+        '</style></head><body>'
+        f'<h1>Extracted tables ({len(job.tables)})</h1>{body}'
+        '</body></html>'
+    )
+
+
+def get_health() -> dict:
+    """In-container health: cpu/ram/uptime + active jobs."""
+    info: dict = {
+        "status": "ok",
+        "uptime_s": int(time.time() - _STARTED_AT),
+        "active_jobs": len(_JOBS),
+    }
+    try:
+        import psutil
+        info["cpu_percent"] = round(psutil.cpu_percent(interval=None), 1)
+        vm = psutil.virtual_memory()
+        info["ram_percent"] = round(vm.percent, 1)
+        info["ram_used_mb"] = int(vm.used / (1024 * 1024))
+        info["ram_total_mb"] = int(vm.total / (1024 * 1024))
+        info["process_rss_mb"] = int(psutil.Process().memory_info().rss / (1024 * 1024))
+    except Exception as e:
+        info["psutil_error"] = str(e)
+    return info
 
 
 def build_combined_csv(job_id: str) -> str:

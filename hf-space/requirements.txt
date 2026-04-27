@@ -8,11 +8,7 @@ pydantic
 ultralytics
 
 # Structure recognition
-# Pinned: transformers >= 4.50 migrated config classes to huggingface_hub
-# strict dataclasses, which reject `dilation: null` in the table-transformer
-# v1.1 config and crash with StrictDataclassFieldValidationError.
-transformers==4.46.3
-huggingface_hub==0.26.5
+transformers>=4.40.2
 torch
 torchvision
 
@@ -25,4 +21,5 @@ paddleocr
 Pillow
 numpy
 opencv-python-headless
-pypdfium2
+openpyxl
+psutil

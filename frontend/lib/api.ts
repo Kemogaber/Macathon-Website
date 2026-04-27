@@ -113,6 +113,14 @@ export function jobCsvUrl(jobId: string): string {
   return `${API_URL}/api/jobs/${jobId}/csv`;
 }
 
+export function jobXlsxUrl(jobId: string): string {
+  return `${API_URL}/api/jobs/${jobId}/xlsx`;
+}
+
+export function jobHtmlUrl(jobId: string): string {
+  return `${API_URL}/api/jobs/${jobId}/html`;
+}
+
 export async function cancelJob(jobId: string): Promise<void> {
   await fetch(`${API_URL}/api/jobs/${jobId}/cancel`, { method: "POST" }).catch(
     () => {},

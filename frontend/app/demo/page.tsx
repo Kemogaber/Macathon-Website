@@ -11,7 +11,8 @@ import {
   createJob,
   detectPages,
   getJobStatus,
-  jobCsvUrl,
+  jobHtmlUrl,
+  jobXlsxUrl,
   jobZipUrl,
   pageImageUrl,
   startRecognize,
@@ -636,22 +637,36 @@ function GlobalDownloadMenu({ jobId }: { jobId: string }) {
         onClick={() => setOpen((o) => !o)}
         className="px-4 py-2 rounded-xl bg-emerald-500/15 border border-emerald-400/40 hover:bg-emerald-500/25 text-emerald-200 light:text-emerald-700 text-sm font-bold"
       >
-        Download CSV ▾
+        Download ▾
       </button>
       {open && (
         <div className="absolute right-0 mt-1 z-10 w-60 rounded-lg border border-border bg-surface-3 shadow-xl overflow-hidden">
           <a
-            href={jobCsvUrl(jobId)}
+            href={jobXlsxUrl(jobId)}
             download
             onClick={() => {
               setOpen(false);
-              toast.success("Download started", "One combined CSV");
+              toast.success("Download started", "Combined XLSX");
             }}
             className="block w-full text-left px-3 py-2 text-xs font-mono text-text hover:bg-overlay"
           >
-            One combined CSV
+            Combined XLSX
             <div className="text-muted text-[10px] mt-0.5">
-              all tables in a single file
+              one sheet per table — opens in Excel
+            </div>
+          </a>
+          <a
+            href={jobHtmlUrl(jobId)}
+            download
+            onClick={() => {
+              setOpen(false);
+              toast.success("Download started", "Combined HTML");
+            }}
+            className="block w-full text-left px-3 py-2 text-xs font-mono text-text hover:bg-overlay border-t border-border"
+          >
+            Combined HTML
+            <div className="text-muted text-[10px] mt-0.5">
+              all tables in one styled page
             </div>
           </a>
           <a
