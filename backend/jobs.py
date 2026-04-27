@@ -124,27 +124,46 @@ def create_job(file_bytes: bytes, content_type: str) -> Job:
     else:
         page_paths = _save_image(file_bytes, out_dir)
 
-    pipeline = get_pipeline()
     pages_meta: list[dict] = []
     for i, p in enumerate(page_paths):
         bgr = cv2.imread(str(p))
         h, w = bgr.shape[:2]
-        detections = pipeline.detect_boxes(bgr)
         pages_meta.append({
             "index": i,
             "filename": p.name,
             "width": w,
             "height": h,
-            "detections": [
-                {"quad": _bbox_to_quad(d["bbox"]), "score": d["score"]}
-                for d in detections
-            ],
+            "detections": [],
+            "detected": False,
         })
 
     job = Job(id=job_id, created_at=time.time(), pages=pages_meta)
     with _LOCK:
         _JOBS[job_id] = job
     return job
+
+
+# ---------------------------------------------------------------------------
+# detect: run YOLO detection on selected pages (None = all)
+# ---------------------------------------------------------------------------
+def run_detect(job_id: str, page_indices: list[int] | None) -> None:
+    job = _JOBS.get(job_id)
+    if job is None:
+        return
+    pipeline = get_pipeline()
+    out_dir = _job_dir(job_id)
+    indices = page_indices if page_indices is not None else list(range(len(job.pages)))
+    for i in indices:
+        if i < 0 or i >= len(job.pages):
+            continue
+        page = job.pages[i]
+        bgr = cv2.imread(str(out_dir / page["filename"]))
+        detections = pipeline.detect_boxes(bgr)
+        page["detections"] = [
+            {"quad": _bbox_to_quad(d["bbox"]), "score": d["score"]}
+            for d in detections
+        ]
+        page["detected"] = True
 
 
 # ---------------------------------------------------------------------------
@@ -217,6 +236,23 @@ def build_zip(job_id: str) -> bytes:
                 zf.write(csv_path, arcname=f"table_{t.index}.csv")
             if png_path.exists():
                 zf.write(png_path, arcname=f"table_{t.index}.png")
+    return buf.getvalue()
+
+
+def build_page_csv_zip(job_id: str, page_index: int) -> bytes:
+    job = _JOBS.get(job_id)
+    if job is None:
+        raise ValueError("job not found")
+    out_dir = _job_dir(job_id)
+    tables = [t for t in job.tables if t.page_index == page_index]
+    if not tables:
+        raise ValueError("no tables for page")
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for t in tables:
+            csv_path = out_dir / f"table_{t.index}.csv"
+            if csv_path.exists():
+                zf.write(csv_path, arcname=f"table_{t.index}.csv")
     return buf.getvalue()
 
 

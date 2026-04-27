@@ -21,6 +21,10 @@ class RecognizeRequest(BaseModel):
     confirmed: list[ConfirmedQuad]
 
 
+class DetectRequest(BaseModel):
+    pages: list[int] | None = None  # None = all pages
+
+
 @router.post("/jobs")
 async def create_job(file: UploadFile = File(...)):
     if file.content_type not in ALLOWED_TYPES:
@@ -49,6 +53,39 @@ def get_page_image(job_id: str, page_index: int):
     if path is None or not path.exists():
         raise HTTPException(404, "page not found")
     return FileResponse(str(path), media_type="image/png")
+
+
+@router.post("/jobs/{job_id}/detect")
+def detect(job_id: str, body: DetectRequest):
+    job = jobsvc.get_job(job_id)
+    if job is None:
+        raise HTTPException(404, "job not found")
+    jobsvc.run_detect(job_id, body.pages)
+    return {
+        "pages": [
+            {
+                "index": p["index"],
+                "detections": p.get("detections", []),
+                "detected": p.get("detected", False),
+            }
+            for p in job.pages
+        ],
+    }
+
+
+@router.get("/jobs/{job_id}/pages/{page_index}/csv-zip")
+def page_csv_zip(job_id: str, page_index: int):
+    try:
+        data = jobsvc.build_page_csv_zip(job_id, page_index)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    return Response(
+        content=data,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="page_{page_index + 1}_csvs.zip"',
+        },
+    )
 
 
 @router.post("/jobs/{job_id}/recognize")

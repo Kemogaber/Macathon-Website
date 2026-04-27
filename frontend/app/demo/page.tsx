@@ -7,9 +7,10 @@ import QuadEditor, {
   rectToQuad,
   type RectQuad,
 } from "@/components/QuadEditor";
-import TableTabs from "@/components/TableTabs";
+import ImageResults from "@/components/ImageResults";
 import {
   createJob,
+  detectPages,
   getJobStatus,
   jobZipUrl,
   pageImageUrl,
@@ -25,8 +26,8 @@ type Step = "upload" | "review" | "error";
 interface PerPageState {
   rects: RectQuad[];
   activeRect: number;
-  parsed: boolean;        // true once this page's tables have been parsed
-  skipped: boolean;       // user marked the page as skipped (red X)
+  detected: boolean;
+  recognized: boolean; // page has been confirmed (TSR+OCR done)
 }
 
 export default function DemoPage() {
@@ -38,25 +39,25 @@ export default function DemoPage() {
   const [pageStates, setPageStates] = useState<PerPageState[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
 
-  const [parsing, setParsing] = useState(false);
-  const [parseProgress, setParseProgress] = useState(0);
+  const [busy, setBusy] = useState<null | "upload" | "detect-one" | "detect-all" | "confirm-one" | "confirm-all">(null);
+  const [confirmProgress, setConfirmProgress] = useState(0);
   const [tables, setTables] = useState<TableData[]>([]);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // ---------- step 1 → 2 : upload + detect ----------
-  async function handleStartDetect() {
+  // ---------- step 1 → 2 : upload only (no auto-detect) ----------
+  async function handleUpload() {
     if (!file) return;
     setErrorMsg("");
-    setParsing(true);
+    setBusy("upload");
     try {
       const j = await createJob(file);
       setJob(j);
       setPageStates(
-        j.pages.map((p) => ({
-          rects: p.detections.map((d) => quadToRect(d.quad)),
+        j.pages.map(() => ({
+          rects: [],
           activeRect: 0,
-          parsed: false,
-          skipped: false,
+          detected: false,
+          recognized: false,
         })),
       );
       setCurrentPage(0);
@@ -66,11 +67,37 @@ export default function DemoPage() {
       setErrorMsg(e instanceof Error ? e.message : "Upload failed.");
       setStep("error");
     } finally {
-      setParsing(false);
+      setBusy(null);
     }
   }
 
-  // ---------- per-page editing ----------
+  // ---------- detection ----------
+  async function runDetection(scope: "one" | "all") {
+    if (!job) return;
+    setErrorMsg("");
+    setBusy(scope === "one" ? "detect-one" : "detect-all");
+    try {
+      const target = scope === "one" ? [currentPage] : null;
+      const res = await detectPages(job.job_id, target);
+      setPageStates((prev) => {
+        const next = prev.map((p) => ({ ...p }));
+        for (const rp of res.pages) {
+          if (!rp.detected) continue;
+          if (next[rp.index].recognized) continue; // don't overwrite confirmed pages
+          next[rp.index].detected = true;
+          next[rp.index].rects = rp.detections.map((d) => quadToRect(d.quad));
+          next[rp.index].activeRect = 0;
+        }
+        return next;
+      });
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : "Detection failed.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  // ---------- box editing ----------
   function setRect(pageIdx: number, ri: number, rect: RectQuad) {
     setPageStates((prev) => {
       const next = [...prev];
@@ -122,58 +149,76 @@ export default function DemoPage() {
     });
   }
 
-  function toggleSkip(pageIdx: number) {
-    setPageStates((prev) => {
-      const next = [...prev];
-      next[pageIdx] = { ...next[pageIdx], skipped: !next[pageIdx].skipped };
-      return next;
-    });
+  // ---------- confirmation (recognize) ----------
+  function buildConfirmedFrom(pages: number[]): ConfirmedQuad[] {
+    const out: ConfirmedQuad[] = [];
+    for (const idx of pages) {
+      const ps = pageStates[idx];
+      if (!ps || ps.recognized || ps.rects.length === 0) continue;
+      for (const r of ps.rects) {
+        out.push({ page_index: idx, quad: rectToQuad(r), score: 0 });
+      }
+    }
+    return out;
   }
 
-  // ---------- parse a single page ----------
-  async function parseCurrentPage() {
-    if (!job || parsing) return;
-    const ps = pageStates[currentPage];
-    if (!ps || ps.parsed || ps.skipped || ps.rects.length === 0) return;
+  async function runConfirm(scope: "one" | "all") {
+    if (!job || busy) return;
+    const targetPages =
+      scope === "one"
+        ? [currentPage]
+        : pageStates
+            .map((p, i) => ({ p, i }))
+            .filter(({ p }) => p.detected && !p.recognized && p.rects.length > 0)
+            .map(({ i }) => i);
 
-    const confirmed: ConfirmedQuad[] = ps.rects.map((r) => ({
-      page_index: currentPage,
-      quad: rectToQuad(r),
-      score: 0,
-    }));
+    if (scope === "one") {
+      const ps = pageStates[currentPage];
+      if (!ps || ps.recognized || !ps.detected || ps.rects.length === 0) return;
+    }
 
-    setParsing(true);
-    setParseProgress(0);
+    const confirmed = buildConfirmedFrom(targetPages);
+    if (confirmed.length === 0) {
+      setErrorMsg(
+        scope === "all"
+          ? "No parsed pages with boxes to confirm. Click Parse first."
+          : "Nothing to confirm on this page.",
+      );
+      return;
+    }
+
+    setBusy(scope === "one" ? "confirm-one" : "confirm-all");
+    setConfirmProgress(0);
     setErrorMsg("");
     try {
       await startRecognize(job.job_id, confirmed);
       pollRef.current = setInterval(async () => {
         try {
           const s: JobStatus = await getJobStatus(job.job_id);
-          setParseProgress(s.progress);
+          setConfirmProgress(s.progress);
           setTables(s.tables);
           if (s.status === "done") {
             if (pollRef.current) clearInterval(pollRef.current);
             setPageStates((prev) => {
-              const next = [...prev];
-              next[currentPage] = { ...next[currentPage], parsed: true };
+              const next = prev.map((p) => ({ ...p }));
+              for (const i of targetPages) next[i].recognized = true;
               return next;
             });
-            setParsing(false);
+            setBusy(null);
           } else if (s.status === "error") {
             if (pollRef.current) clearInterval(pollRef.current);
             setErrorMsg(s.error ?? "Recognition failed.");
-            setParsing(false);
+            setBusy(null);
           }
         } catch (e) {
           if (pollRef.current) clearInterval(pollRef.current);
           setErrorMsg(e instanceof Error ? e.message : "Polling failed.");
-          setParsing(false);
+          setBusy(null);
         }
       }, 800);
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : "Failed to start parsing.");
-      setParsing(false);
+      setBusy(null);
     }
   }
 
@@ -191,15 +236,18 @@ export default function DemoPage() {
     setPageStates([]);
     setCurrentPage(0);
     setTables([]);
-    setParsing(false);
-    setParseProgress(0);
+    setBusy(null);
+    setConfirmProgress(0);
     setErrorMsg("");
   }
 
   // ---------- render ----------
-  const parsedCount = pageStates.filter((p) => p.parsed).length;
-  const skippedCount = pageStates.filter((p) => p.skipped).length;
   const ps = pageStates[currentPage];
+  const detectedCount = pageStates.filter((p) => p.detected).length;
+  const recognizedCount = pageStates.filter((p) => p.recognized).length;
+  const confirmableCount = pageStates.filter(
+    (p) => p.detected && !p.recognized && p.rects.length > 0,
+  ).length;
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-12">
@@ -220,11 +268,11 @@ export default function DemoPage() {
                 {file.name} · {(file.size / 1024).toFixed(1)} KB
               </p>
               <button
-                onClick={handleStartDetect}
-                disabled={parsing}
+                onClick={handleUpload}
+                disabled={busy !== null}
                 className="px-6 py-2.5 rounded-xl bg-[#00d4ff] text-[#0a0b0f] font-bold text-sm hover:bg-cyan-300 transition-colors glow-cyan disabled:opacity-50"
               >
-                {parsing ? "Detecting…" : "Detect Tables →"}
+                {busy === "upload" ? "Uploading…" : "Upload →"}
               </button>
             </div>
           )}
@@ -233,7 +281,7 @@ export default function DemoPage() {
 
       {step === "review" && job && ps && (
         <div className="space-y-5">
-          {/* page nav */}
+          {/* page nav + global actions */}
           <div className="glass rounded-2xl p-5 flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-3">
               <button
@@ -244,7 +292,7 @@ export default function DemoPage() {
                 ← Prev
               </button>
               <span className="font-mono text-sm text-[#9ca3af]">
-                Page {currentPage + 1} / {job.pages.length}
+                Image {currentPage + 1} / {job.pages.length}
               </span>
               <button
                 onClick={() =>
@@ -257,82 +305,95 @@ export default function DemoPage() {
               </button>
               <PageStatusBadge state={ps} />
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs text-[#6b7280] font-mono">
-                {parsedCount} parsed · {skippedCount} skipped · {tables.length}{" "}
-                tables so far
+                {detectedCount} parsed · {recognizedCount} confirmed
               </span>
-              <button
-                onClick={() => toggleSkip(currentPage)}
-                disabled={ps.parsed}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors disabled:opacity-40 ${
-                  ps.skipped
-                    ? "bg-red-500/20 border border-red-500/40 text-red-300"
-                    : "bg-white/5 border border-white/10 hover:border-red-400/40"
-                }`}
-                title="Skip this page"
-              >
-                {ps.skipped ? "✗ Skipped — click to undo" : "✗ Skip page"}
-              </button>
             </div>
           </div>
 
+          {/* parse buttons */}
+          <div className="glass rounded-2xl p-4 flex items-center gap-2 flex-wrap">
+            <span className="text-xs uppercase tracking-wider text-[#6b7280] mr-2">
+              Step 1 — Detect tables
+            </span>
+            <button
+              onClick={() => runDetection("one")}
+              disabled={busy !== null || ps.recognized}
+              className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:border-[#00d4ff]/40 text-sm disabled:opacity-40"
+            >
+              {busy === "detect-one" ? "Parsing…" : "Parse this image"}
+            </button>
+            <button
+              onClick={() => runDetection("all")}
+              disabled={busy !== null}
+              className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:border-[#00d4ff]/40 text-sm disabled:opacity-40"
+            >
+              {busy === "detect-all" ? "Parsing all…" : "Parse all"}
+            </button>
+            {ps.detected && !ps.recognized && (
+              <span className="text-xs text-[#9ca3af] font-mono ml-2">
+                {ps.rects.length} box{ps.rects.length === 1 ? "" : "es"} on this image — adjust below.
+              </span>
+            )}
+          </div>
+
           {/* editor */}
-          <div
-            className={`glass rounded-2xl p-5 ${ps.skipped ? "opacity-50" : ""}`}
-          >
+          <div className="glass rounded-2xl p-5">
             <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <p className="text-xs uppercase tracking-wider text-[#6b7280]">
-                {ps.parsed
-                  ? "✓ Page parsed — locked. Navigate to another page."
-                  : ps.skipped
-                    ? "Page skipped. Toggle skip off to edit."
-                    : `Drag edges/rotate to fit. ${ps.rects.length} table(s) on this page.`}
+                {ps.recognized
+                  ? "✓ Confirmed — locked. Use arrows to navigate."
+                  : ps.detected
+                    ? `Drag edges/rotate to fit. ${ps.rects.length} box(es).`
+                    : "Not parsed yet — click “Parse this image” to detect tables."}
               </p>
               <div className="flex gap-2">
                 <button
                   onClick={() => addRect(currentPage)}
-                  disabled={ps.parsed || ps.skipped}
+                  disabled={ps.recognized}
                   className="px-3 py-1 rounded-lg border border-white/10 hover:border-[#00d4ff]/40 text-xs disabled:opacity-40"
                 >
-                  + Add table
+                  + Add box
                 </button>
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2 mb-4">
-              {ps.rects.map((_, ri) => (
-                <span
-                  key={ri}
-                  className={`inline-flex items-center gap-1 rounded-lg text-xs font-mono border transition-colors ${
-                    ri === ps.activeRect
-                      ? "border-[#00d4ff] bg-[rgba(0,212,255,0.12)] text-[#00d4ff]"
-                      : "border-white/10 text-[#9ca3af]"
-                  }`}
-                >
-                  <button
-                    onClick={() => setActiveRect(currentPage, ri)}
-                    className="px-3 py-1"
+            {ps.detected && (
+              <div className="flex flex-wrap gap-2 mb-4">
+                {ps.rects.map((_, ri) => (
+                  <span
+                    key={ri}
+                    className={`inline-flex items-center gap-1 rounded-lg text-xs font-mono border transition-colors ${
+                      ri === ps.activeRect
+                        ? "border-[#00d4ff] bg-[rgba(0,212,255,0.12)] text-[#00d4ff]"
+                        : "border-white/10 text-[#9ca3af]"
+                    }`}
                   >
-                    Table {ri + 1}
-                  </button>
-                  {!ps.parsed && !ps.skipped && (
                     <button
-                      onClick={() => removeRect(currentPage, ri)}
-                      title="Remove this region"
-                      className="w-5 h-5 mr-1 rounded-md flex items-center justify-center text-red-400 hover:bg-red-500/20 hover:text-red-300"
+                      onClick={() => setActiveRect(currentPage, ri)}
+                      className="px-3 py-1"
                     >
-                      ✕
+                      Box {ri + 1}
                     </button>
-                  )}
-                </span>
-              ))}
-              {ps.rects.length === 0 && (
-                <span className="text-xs text-[#6b7280] font-mono">
-                  No detections — use “+ Add table” to draw one.
-                </span>
-              )}
-            </div>
+                    {!ps.recognized && (
+                      <button
+                        onClick={() => removeRect(currentPage, ri)}
+                        title="Remove this region"
+                        className="w-5 h-5 mr-1 rounded-md flex items-center justify-center text-red-400 hover:bg-red-500/20 hover:text-red-300"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </span>
+                ))}
+                {ps.rects.length === 0 && (
+                  <span className="text-xs text-[#6b7280] font-mono">
+                    No tables detected on this image. Use “+ Add box” if you want to draw one.
+                  </span>
+                )}
+              </div>
+            )}
 
             <QuadEditor
               imageUrl={pageImageUrl(job.job_id, currentPage)}
@@ -342,11 +403,46 @@ export default function DemoPage() {
               activeIndex={ps.activeRect}
               onRectChange={(ri, r) => setRect(currentPage, ri, r)}
               onRemove={(ri) => removeRect(currentPage, ri)}
-              locked={ps.parsed || ps.skipped}
+              locked={ps.recognized}
             />
           </div>
 
-          {/* parse controls */}
+          {/* confirm buttons */}
+          <div className="glass rounded-2xl p-4 flex items-center gap-2 flex-wrap">
+            <span className="text-xs uppercase tracking-wider text-[#6b7280] mr-2">
+              Step 2 — Confirm (run TSR + OCR)
+            </span>
+            <button
+              onClick={() => runConfirm("one")}
+              disabled={
+                busy !== null ||
+                !ps.detected ||
+                ps.recognized ||
+                ps.rects.length === 0
+              }
+              className="px-4 py-2 rounded-lg bg-[#00d4ff] text-[#0a0b0f] font-bold text-sm hover:bg-cyan-300 transition-colors glow-cyan disabled:opacity-40"
+            >
+              {busy === "confirm-one" ? "Confirming…" : "Confirm this image"}
+            </button>
+            <button
+              onClick={() => runConfirm("all")}
+              disabled={busy !== null || confirmableCount === 0}
+              className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:border-[#00d4ff]/40 text-sm disabled:opacity-40"
+            >
+              {busy === "confirm-all"
+                ? "Confirming all…"
+                : `Confirm all (${confirmableCount})`}
+            </button>
+            {(busy === "confirm-one" || busy === "confirm-all") && (
+              <span className="text-xs font-mono text-[#00d4ff] ml-2">
+                {Math.round(confirmProgress * 100)}%
+              </span>
+            )}
+            <span className="ml-auto text-xs text-[#6b7280] font-mono">
+              Already-confirmed pages are skipped.
+            </span>
+          </div>
+
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <button
               onClick={reset}
@@ -354,49 +450,28 @@ export default function DemoPage() {
             >
               ← Start over
             </button>
-            <div className="flex items-center gap-3">
-              {parsing && (
-                <span className="text-xs font-mono text-[#00d4ff]">
-                  Parsing… {Math.round(parseProgress * 100)}%
-                </span>
-              )}
-              <button
-                onClick={parseCurrentPage}
-                disabled={
-                  parsing ||
-                  ps.parsed ||
-                  ps.skipped ||
-                  ps.rects.length === 0
-                }
-                className="px-6 py-2.5 rounded-xl bg-[#00d4ff] text-[#0a0b0f] font-bold text-sm hover:bg-cyan-300 transition-colors glow-cyan disabled:opacity-40 disabled:cursor-not-allowed"
+            {tables.length > 0 && (
+              <a
+                href={jobZipUrl(job.job_id)}
+                className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:border-[#00d4ff]/40 text-sm"
               >
-                {ps.parsed
-                  ? "✓ Parsed"
-                  : `Parse this page (${ps.rects.length})`}
-              </button>
-            </div>
+                Download all (ZIP)
+              </a>
+            )}
           </div>
 
           {errorMsg && <p className="text-red-400 text-sm">{errorMsg}</p>}
 
-          {/* incremental results */}
           {tables.length > 0 && (
             <div className="space-y-3">
-              <div className="flex items-center justify-between flex-wrap gap-3">
-                <h2 className="text-lg font-bold text-white">
-                  Results
-                  <span className="ml-2 text-xs font-mono text-[#6b7280]">
-                    {tables.length} table{tables.length === 1 ? "" : "s"} parsed
-                  </span>
-                </h2>
-                <a
-                  href={jobZipUrl(job.job_id)}
-                  className="px-4 py-2 rounded-xl bg-[#00d4ff] text-[#0a0b0f] font-bold text-sm hover:bg-cyan-300 transition-colors glow-cyan"
-                >
-                  Download all (ZIP)
-                </a>
-              </div>
-              <TableTabs jobId={job.job_id} tables={tables} forceCarousel />
+              <h2 className="text-lg font-bold text-white">
+                Results
+                <span className="ml-2 text-xs font-mono text-[#6b7280]">
+                  {tables.length} table{tables.length === 1 ? "" : "s"} across{" "}
+                  {recognizedCount} image{recognizedCount === 1 ? "" : "s"}
+                </span>
+              </h2>
+              <ImageResults jobId={job.job_id} tables={tables} />
             </div>
           )}
         </div>
@@ -419,27 +494,31 @@ export default function DemoPage() {
 }
 
 function PageStatusBadge({ state }: { state: PerPageState }) {
-  if (state.parsed) {
+  if (state.recognized) {
     return (
       <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-xs font-mono">
-        ✓ Parsed
+        ✓ Confirmed
       </span>
     );
   }
-  if (state.skipped) {
+  if (state.detected) {
     return (
-      <span className="px-2 py-0.5 rounded-full bg-red-500/15 text-red-300 border border-red-500/30 text-xs font-mono">
-        ✗ Skipped
+      <span className="px-2 py-0.5 rounded-full bg-[rgba(0,212,255,0.12)] text-[#00d4ff] border border-[#00d4ff]/30 text-xs font-mono">
+        ● Parsed
       </span>
     );
   }
-  return null;
+  return (
+    <span className="px-2 py-0.5 rounded-full bg-white/5 text-[#9ca3af] border border-white/10 text-xs font-mono">
+      ○ Not parsed
+    </span>
+  );
 }
 
 function Stepper({ step, hasResults }: { step: Step; hasResults: boolean }) {
   const labels = [
     { id: "upload", label: "Upload" },
-    { id: "review", label: "Review & Parse" },
+    { id: "review", label: "Parse & Confirm" },
     { id: "results", label: "Results" },
   ];
   const active = step === "upload" ? 0 : hasResults ? 2 : 1;

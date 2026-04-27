@@ -38,6 +38,11 @@ export interface PageMeta {
   width: number;
   height: number;
   detections: Detection[];
+  detected?: boolean;
+}
+
+export interface DetectResponse {
+  pages: { index: number; detections: Detection[]; detected: boolean }[];
 }
 
 export interface JobInit {
@@ -102,6 +107,26 @@ export function tableImageUrl(jobId: string, tableIndex: number): string {
 
 export function jobZipUrl(jobId: string): string {
   return `${API_URL}/api/jobs/${jobId}/download`;
+}
+
+export function pageCsvZipUrl(jobId: string, pageIndex: number): string {
+  return `${API_URL}/api/jobs/${jobId}/pages/${pageIndex}/csv-zip`;
+}
+
+export async function detectPages(
+  jobId: string,
+  pages: number[] | null,
+): Promise<DetectResponse> {
+  const res = await fetch(`${API_URL}/api/jobs/${jobId}/detect`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pages }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Unknown error" }));
+    throw new Error(err.detail ?? `Request failed with status ${res.status}`);
+  }
+  return res.json();
 }
 
 export async function startRecognize(
