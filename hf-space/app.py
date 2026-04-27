@@ -1,4 +1,5 @@
 import asyncio
+import hmac
 import io
 import json
 import os
@@ -9,12 +10,20 @@ from fastapi import (
     FastAPI,
     File,
     HTTPException,
+    Request,
     UploadFile,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, RedirectResponse, Response, StreamingResponse
+from fastapi.responses import (
+    FileResponse,
+    JSONResponse,
+    RedirectResponse,
+    Response,
+    StreamingResponse,
+)
 from pydantic import BaseModel
 
+import api_keys
 import jobs as jobsvc
 from pipeline import get_pipeline
 
@@ -30,6 +39,93 @@ api.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ---------------------------------------------------------------------------
+# API-key gating. Off by default (your own frontend keeps working without a
+# key). Turn on by setting REQUIRE_API_KEY=1 as a Space secret. Manage keys
+# via /api/admin/keys, protected by ADMIN_API_KEY (also a Space secret).
+# ---------------------------------------------------------------------------
+
+def _truthy(v: str | None) -> bool:
+    return (v or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _extract_token(request) -> str:
+    auth = request.headers.get("authorization", "")
+    if auth.lower().startswith("bearer "):
+        return auth[7:].strip()
+    x = request.headers.get("x-api-key", "")
+    return x.strip()
+
+
+def _gated_path(path: str) -> bool:
+    """Endpoints that require a consumer API key when gating is on."""
+    if path == "/api/extract":
+        return True
+    if path == "/api/jobs" or path.startswith("/api/jobs/"):
+        return True
+    return False
+
+
+@api.middleware("http")
+async def api_key_gate(request, call_next):
+    if not _truthy(os.environ.get("REQUIRE_API_KEY")):
+        return await call_next(request)
+    if not _gated_path(request.url.path):
+        return await call_next(request)
+    if request.method == "OPTIONS":
+        return await call_next(request)
+    token = _extract_token(request)
+    if not token or not api_keys.verify_key(token):
+        return JSONResponse(
+            {"detail": "Missing or invalid API key."},
+            status_code=401,
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return await call_next(request)
+
+
+def _check_admin(request) -> None:
+    expected = os.environ.get("ADMIN_API_KEY", "")
+    if not expected:
+        raise HTTPException(503, "Admin API disabled (set ADMIN_API_KEY secret).")
+    auth = request.headers.get("authorization", "")
+    x = request.headers.get("x-admin-key", "")
+    token = (
+        x.strip()
+        if x
+        else (auth[7:].strip() if auth.lower().startswith("bearer ") else "")
+    )
+    if not token or not hmac.compare_digest(token, expected):
+        raise HTTPException(401, "Invalid admin key.")
+
+
+class _CreateKeyBody(BaseModel):
+    name: str
+
+
+@api.get("/api/admin/keys")
+def admin_list_keys(request: Request):
+    _check_admin(request)
+    return {"keys": api_keys.list_keys()}
+
+
+@api.post("/api/admin/keys")
+def admin_create_key(body: _CreateKeyBody, request: Request):
+    _check_admin(request)
+    name = (body.name or "").strip()
+    if not name:
+        raise HTTPException(400, "name is required.")
+    return api_keys.create_key(name)
+
+
+@api.delete("/api/admin/keys/{key_id}")
+def admin_revoke_key(key_id: str, request: Request):
+    _check_admin(request)
+    if not api_keys.revoke_key(key_id):
+        raise HTTPException(404, "Key not found.")
+    return {"ok": True}
 
 ALLOWED_TYPES = {
     "image/jpeg", "image/png", "image/webp", "image/gif",
