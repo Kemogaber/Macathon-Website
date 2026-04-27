@@ -239,10 +239,10 @@ export default function DemoPage() {
   return (
     <div className="max-w-6xl mx-auto px-6 py-12">
       <div className="text-center mb-10">
-        <span className="inline-block px-3 py-1 rounded-full border border-[#00d4ff]/20 bg-[rgba(0,212,255,0.1)] text-[#00d4ff] text-xs font-mono mb-4">
+        <span className="inline-block px-3 py-1 rounded-full border border-cyan/20 bg-[rgba(0,212,255,0.1)] text-cyan text-xs font-mono mb-4">
           Live Demo
         </span>
-        <h1 className="text-4xl font-black text-white mb-3">Table Extractor</h1>
+        <h1 className="text-4xl font-black text-text mb-3">Table Extractor</h1>
         <Stepper step={step} hasResults={tables.length > 0} />
       </div>
 
@@ -251,13 +251,13 @@ export default function DemoPage() {
           <UploadZone onFileSelect={setFile} />
           {file && (
             <div className="mt-5 flex items-center justify-between gap-4 flex-wrap">
-              <p className="text-sm text-[#9ca3af] font-mono truncate max-w-xs">
+              <p className="text-sm text-muted-2 font-mono truncate max-w-xs">
                 {file.name} · {(file.size / 1024).toFixed(1)} KB
               </p>
               <button
                 onClick={handleUpload}
                 disabled={busy !== null}
-                className="px-6 py-2.5 rounded-xl bg-[#00d4ff] text-[#0a0b0f] font-bold text-sm hover:bg-cyan-300 transition-colors glow-cyan disabled:opacity-50"
+                className="px-6 py-2.5 rounded-xl bg-cyan text-background font-bold text-sm hover:bg-cyan-300 transition-colors glow-cyan disabled:opacity-50"
               >
                 {busy === "upload" ? "Uploading…" : "Upload →"}
               </button>
@@ -272,11 +272,11 @@ export default function DemoPage() {
             <button
               onClick={() => setCurrentPage((i: number) => Math.max(0, i - 1))}
               disabled={currentPage === 0}
-              className="px-3 py-1.5 rounded-lg border border-[#00d4ff]/30 bg-[rgba(0,212,255,0.06)] hover:bg-[rgba(0,212,255,0.14)] hover:border-[#00d4ff] disabled:opacity-30 text-sm text-[#00d4ff]"
+              className="px-3 py-1.5 rounded-lg border border-cyan/30 bg-[rgba(0,212,255,0.06)] hover:bg-[rgba(0,212,255,0.14)] hover:border-cyan disabled:opacity-30 text-sm text-cyan"
             >
               ← Prev
             </button>
-            <span className="font-mono text-sm text-white text-center min-w-[10rem]">
+            <span className="font-mono text-sm text-text text-center min-w-[10rem]">
               Image {currentPage + 1} / {job.pages.length}
             </span>
             <button
@@ -286,19 +286,19 @@ export default function DemoPage() {
                 )
               }
               disabled={currentPage === job.pages.length - 1}
-              className="px-3 py-1.5 rounded-lg border border-[#00d4ff]/30 bg-[rgba(0,212,255,0.06)] hover:bg-[rgba(0,212,255,0.14)] hover:border-[#00d4ff] disabled:opacity-30 text-sm text-[#00d4ff]"
+              className="px-3 py-1.5 rounded-lg border border-cyan/30 bg-[rgba(0,212,255,0.06)] hover:bg-[rgba(0,212,255,0.14)] hover:border-cyan disabled:opacity-30 text-sm text-cyan"
             >
               Next →
             </button>
             <PageStatusBadge state={ps} />
-            <span className="text-xs text-[#6b7280] font-mono ml-4">
+            <span className="text-xs text-muted font-mono ml-4">
               {detectedCount} parsed · {recognizedCount} confirmed
             </span>
           </div>
 
           {/* Step 1 — detect */}
           <div className="glass rounded-2xl p-4 flex items-center justify-center gap-3 flex-wrap">
-            <span className="text-xs uppercase tracking-wider text-[#9ca3af]">
+            <span className="text-xs uppercase tracking-wider text-muted-2">
               Step 1 — Detect tables
             </span>
             <button
@@ -316,7 +316,7 @@ export default function DemoPage() {
               {busy === "detect-all" ? "Parsing all…" : "Parse all"}
             </button>
             {ps.detected && !ps.recognized && (
-              <span className="text-xs text-[#9ca3af] font-mono">
+              <span className="text-xs text-muted-2 font-mono">
                 {ps.rects.length} box{ps.rects.length === 1 ? "" : "es"} — adjust below.
               </span>
             )}
@@ -325,7 +325,7 @@ export default function DemoPage() {
           {/* editor */}
           <div className="glass rounded-2xl p-5">
             <div className="flex items-center justify-center mb-3 flex-wrap gap-3">
-              <p className="text-xs uppercase tracking-wider text-[#6b7280] text-center">
+              <p className="text-xs uppercase tracking-wider text-muted text-center">
                 {ps.recognized
                   ? "✓ Confirmed — locked. Use arrows to navigate."
                   : ps.detected
@@ -348,8 +348,8 @@ export default function DemoPage() {
                     key={ri}
                     className={`inline-flex items-center gap-1 rounded-lg text-xs font-mono border transition-colors ${
                       ri === ps.activeRect
-                        ? "border-[#00d4ff] bg-[rgba(0,212,255,0.12)] text-[#00d4ff]"
-                        : "border-white/10 text-[#9ca3af]"
+                        ? "border-cyan bg-[rgba(0,212,255,0.12)] text-cyan"
+                        : "border-border text-muted-2"
                     }`}
                   >
                     <button
@@ -370,7 +370,7 @@ export default function DemoPage() {
                   </span>
                 ))}
                 {ps.rects.length === 0 && (
-                  <span className="text-xs text-[#6b7280] font-mono">
+                  <span className="text-xs text-muted font-mono">
                     No tables detected. Use “+ Add box” to draw one.
                   </span>
                 )}
@@ -391,7 +391,7 @@ export default function DemoPage() {
 
           {/* Step 2 — confirm */}
           <div className="glass rounded-2xl p-4 flex items-center justify-center gap-3 flex-wrap">
-            <span className="text-xs uppercase tracking-wider text-[#9ca3af]">
+            <span className="text-xs uppercase tracking-wider text-muted-2">
               Step 2 — Confirm (TSR + OCR)
             </span>
             <button
@@ -402,7 +402,7 @@ export default function DemoPage() {
                 ps.recognized ||
                 ps.rects.length === 0
               }
-              className="px-4 py-2 rounded-lg bg-[#00d4ff] text-[#0a0b0f] font-bold text-sm hover:bg-cyan-300 transition-colors glow-cyan disabled:opacity-40"
+              className="px-4 py-2 rounded-lg bg-cyan text-background font-bold text-sm hover:bg-cyan-300 transition-colors glow-cyan disabled:opacity-40"
             >
               {busy === "confirm-one" ? "Confirming…" : "Confirm this image"}
             </button>
@@ -416,7 +416,7 @@ export default function DemoPage() {
                 : `Confirm all (${confirmableCount})`}
             </button>
             {(busy === "confirm-one" || busy === "confirm-all") && (
-              <span className="text-xs font-mono text-[#00d4ff]">
+              <span className="text-xs font-mono text-cyan">
                 {Math.round(confirmProgress * 100)}%
               </span>
             )}
@@ -425,7 +425,7 @@ export default function DemoPage() {
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <button
               onClick={reset}
-              className="text-xs text-[#6b7280] hover:text-white"
+              className="text-xs text-muted hover:text-text"
             >
               ← Start over
             </button>
@@ -445,9 +445,9 @@ export default function DemoPage() {
 
           {tables.length > 0 && (
             <div className="space-y-3">
-              <h2 className="text-lg font-bold text-white text-center">
+              <h2 className="text-lg font-bold text-text text-center">
                 Results
-                <span className="ml-2 text-xs font-mono text-[#6b7280]">
+                <span className="ml-2 text-xs font-mono text-muted">
                   {tables.length} table{tables.length === 1 ? "" : "s"} across{" "}
                   {recognizedCount} image{recognizedCount === 1 ? "" : "s"}
                 </span>
@@ -461,10 +461,10 @@ export default function DemoPage() {
       {step === "error" && (
         <div className="glass rounded-2xl p-6 border border-red-500/20 bg-red-500/5 max-w-xl mx-auto">
           <p className="text-red-400 font-medium">⚠ Something went wrong</p>
-          <p className="text-[#9ca3af] text-sm mt-1">{errorMsg}</p>
+          <p className="text-muted-2 text-sm mt-1">{errorMsg}</p>
           <button
             onClick={reset}
-            className="mt-4 px-4 py-2 rounded-lg border border-white/10 hover:border-[#00d4ff]/40 text-sm"
+            className="mt-4 px-4 py-2 rounded-lg border border-border hover:border-cyan/40 text-sm"
           >
             Try again
           </button>
@@ -484,13 +484,13 @@ function PageStatusBadge({ state }: { state: PerPageState }) {
   }
   if (state.detected) {
     return (
-      <span className="px-2 py-0.5 rounded-full bg-[rgba(0,212,255,0.12)] text-[#00d4ff] border border-[#00d4ff]/30 text-xs font-mono">
+      <span className="px-2 py-0.5 rounded-full bg-[rgba(0,212,255,0.12)] text-cyan border border-cyan/30 text-xs font-mono">
         ● Parsed
       </span>
     );
   }
   return (
-    <span className="px-2 py-0.5 rounded-full bg-white/5 text-[#9ca3af] border border-white/10 text-xs font-mono">
+    <span className="px-2 py-0.5 rounded-full bg-overlay text-muted-2 border border-border text-xs font-mono">
       ○ Not parsed
     </span>
   );
@@ -510,13 +510,13 @@ function Stepper({ step, hasResults }: { step: Step; hasResults: boolean }) {
           <span
             className={`px-3 py-1 rounded-full border ${
               i <= active
-                ? "border-[#00d4ff]/40 bg-[rgba(0,212,255,0.12)] text-[#00d4ff]"
-                : "border-white/10 text-[#6b7280]"
+                ? "border-cyan/40 bg-[rgba(0,212,255,0.12)] text-cyan"
+                : "border-border text-muted"
             }`}
           >
             {i + 1}. {l.label}
           </span>
-          {i < labels.length - 1 && <span className="text-[#6b7280]">—</span>}
+          {i < labels.length - 1 && <span className="text-muted">—</span>}
         </div>
       ))}
     </div>

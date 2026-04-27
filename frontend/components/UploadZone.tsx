@@ -56,7 +56,7 @@ export default function UploadZone({ onFileSelect, disabled }: Props) {
         className={`relative flex flex-col items-center justify-center w-full min-h-52 rounded-2xl cursor-pointer transition-all duration-200 gradient-border
           ${disabled ? "opacity-50 cursor-not-allowed" : ""}
           ${dragging
-            ? "bg-cyan-dim border-[#00d4ff]/50 glow-cyan"
+            ? "bg-cyan-dim border-cyan/50 glow-cyan"
             : "bg-white/[0.02] hover:bg-white/[0.04] border-transparent"
           }`}
       >
@@ -73,12 +73,12 @@ export default function UploadZone({ onFileSelect, disabled }: Props) {
               🖼️
             </div>
             <div>
-              <p className="text-white font-medium">Drop your image or PDF here</p>
-              <p className="text-[#6b7280] text-sm mt-1">
+              <p className="text-text font-medium">Drop your image or PDF here</p>
+              <p className="text-muted text-sm mt-1">
                 or click to browse — JPG, PNG, WebP, PDF up to 25 MB
               </p>
             </div>
-            <span className="px-3 py-1 rounded-full border border-white/10 text-xs text-[#6b7280] font-mono">
+            <span className="px-3 py-1 rounded-full border border-border text-xs text-muted font-mono">
               Click to select
             </span>
           </div>
@@ -95,7 +95,7 @@ export default function UploadZone({ onFileSelect, disabled }: Props) {
       {preview && (
         <button
           onClick={() => { setPreview(null); }}
-          className="text-xs text-[#6b7280] hover:text-white transition-colors"
+          className="text-xs text-muted hover:text-text transition-colors"
         >
           ✕ Remove image
         </button>

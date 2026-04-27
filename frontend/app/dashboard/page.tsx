@@ -38,10 +38,10 @@ export default function DashboardPage() {
     <div className="max-w-6xl mx-auto px-6 py-12">
       <div className="flex items-end justify-between mb-8 flex-wrap gap-4">
         <div>
-          <span className="inline-block px-3 py-1 rounded-full border border-[#00d4ff]/20 bg-[rgba(0,212,255,0.1)] text-[#00d4ff] text-xs font-mono mb-3">
+          <span className="inline-block px-3 py-1 rounded-full border border-cyan/20 bg-[rgba(0,212,255,0.1)] text-cyan text-xs font-mono mb-3">
             Health Dashboard
           </span>
-          <h1 className="text-4xl font-black text-white">System Status</h1>
+          <h1 className="text-4xl font-black text-text">System Status</h1>
         </div>
         <StatusPill healthy={healthy} />
       </div>
@@ -73,15 +73,15 @@ export default function DashboardPage() {
 
           <div className="glass rounded-2xl p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-white">Recent jobs</h2>
-              <span className="text-xs text-[#6b7280] font-mono">
+              <h2 className="font-semibold text-text">Recent jobs</h2>
+              <span className="text-xs text-muted font-mono">
                 {metrics.jobs_succeeded} ✓ · {metrics.jobs_failed} ✗
               </span>
             </div>
-            <div className="overflow-auto max-h-[28rem] rounded-lg border border-white/10">
-              <table className="w-full text-sm text-white">
-                <thead className="bg-white/5 sticky top-0">
-                  <tr className="text-left text-[#9ca3af] text-xs uppercase tracking-wider">
+            <div className="overflow-auto max-h-[28rem] rounded-lg border border-border">
+              <table className="w-full text-sm text-text">
+                <thead className="bg-overlay sticky top-0">
+                  <tr className="text-left text-muted-2 text-xs uppercase tracking-wider">
                     <th className="px-3 py-2">Time</th>
                     <th className="px-3 py-2">Job</th>
                     <th className="px-3 py-2">Status</th>
@@ -93,14 +93,14 @@ export default function DashboardPage() {
                 <tbody>
                   {metrics.recent.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-3 py-6 text-center text-[#6b7280] text-sm">
+                      <td colSpan={6} className="px-3 py-6 text-center text-muted text-sm">
                         No jobs yet.
                       </td>
                     </tr>
                   ) : (
                     [...metrics.recent].reverse().map((r, i) => (
-                      <tr key={`${r.job_id}-${i}`} className="border-t border-white/5">
-                        <td className="px-3 py-2 font-mono text-xs text-[#9ca3af]">
+                      <tr key={`${r.job_id}-${i}`} className="border-t border-border">
+                        <td className="px-3 py-2 font-mono text-xs text-muted-2">
                           {new Date(r.ts * 1000).toLocaleTimeString()}
                         </td>
                         <td className="px-3 py-2 font-mono text-xs">{r.job_id.slice(0, 8)}</td>
@@ -129,7 +129,7 @@ export default function DashboardPage() {
           </div>
         </>
       ) : !error ? (
-        <div className="glass rounded-2xl p-8 text-center text-[#9ca3af]">Loading…</div>
+        <div className="glass rounded-2xl p-8 text-center text-muted-2">Loading…</div>
       ) : null}
     </div>
   );
@@ -151,10 +151,10 @@ function Stat({
         ? "text-yellow-300"
         : tone === "bad"
           ? "text-red-300"
-          : "text-white";
+          : "text-text";
   return (
     <div className="glass rounded-2xl p-5">
-      <p className="text-xs uppercase tracking-wider text-[#6b7280] font-mono mb-1">{label}</p>
+      <p className="text-xs uppercase tracking-wider text-muted font-mono mb-1">{label}</p>
       <p className={`text-2xl font-black ${accent}`}>{value}</p>
     </div>
   );
@@ -163,7 +163,7 @@ function Stat({
 function StatusPill({ healthy }: { healthy: boolean | null }) {
   if (healthy === null) {
     return (
-      <span className="px-3 py-1.5 rounded-full border border-white/10 text-xs font-mono text-[#9ca3af]">
+      <span className="px-3 py-1.5 rounded-full border border-border text-xs font-mono text-muted-2">
         Checking…
       </span>
     );

@@ -38,8 +38,8 @@ export default function HomePage() {
           style={{ background: "radial-gradient(ellipse, #7c3aed 0%, transparent 70%)" }}
         />
 
-        <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[#00d4ff]/20 bg-[rgba(0,212,255,0.15)] text-[#00d4ff] text-xs font-mono mb-6">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#00d4ff] animate-pulse" />
+        <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-cyan/20 bg-[rgba(0,212,255,0.15)] text-cyan text-xs font-mono mb-6">
+          <span className="w-1.5 h-1.5 rounded-full bg-cyan animate-pulse" />
           AI-Powered · Real-time Extraction
         </span>
 
@@ -50,7 +50,7 @@ export default function HomePage() {
           from Any Image
         </h1>
 
-        <p className="text-[#9ca3af] text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
+        <p className="text-muted-2 text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
           Upload a photo of any document, spreadsheet, or form. Our AI pipeline —
           table detection, structure recognition, and OCR — returns a clean,
           downloadable table in seconds.
@@ -59,13 +59,13 @@ export default function HomePage() {
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Link
             href="/demo"
-            className="px-8 py-4 rounded-xl bg-[#00d4ff] text-[#0a0b0f] font-bold text-base hover:bg-cyan-300 transition-colors glow-cyan inline-block"
+            className="px-8 py-4 rounded-xl bg-cyan text-background font-bold text-base hover:bg-cyan-300 transition-colors glow-cyan inline-block"
           >
             Parse →
           </Link>
           <Link
             href="/how-it-works"
-            className="px-8 py-4 rounded-xl border border-white/10 text-white font-medium text-base hover:bg-white/5 transition-colors inline-block"
+            className="px-8 py-4 rounded-xl border border-border text-text font-medium text-base hover:bg-overlay transition-colors inline-block"
           >
             How It Works
           </Link>
@@ -73,12 +73,12 @@ export default function HomePage() {
       </section>
 
       {/* Stats strip */}
-      <section className="border-y border-white/5 bg-white/[0.015]">
+      <section className="border-y border-border bg-white/[0.015]">
         <div className="max-w-6xl mx-auto px-6 py-8 grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
           {stats.map((s) => (
             <div key={s.label}>
-              <p className="text-xl font-bold text-[#00d4ff] font-mono">{s.value}</p>
-              <p className="text-[#6b7280] text-sm mt-1">{s.label}</p>
+              <p className="text-xl font-bold text-cyan font-mono">{s.value}</p>
+              <p className="text-muted text-sm mt-1">{s.label}</p>
             </div>
           ))}
         </div>
@@ -87,10 +87,10 @@ export default function HomePage() {
       {/* Features */}
       <section className="max-w-6xl mx-auto px-6 py-24">
         <div className="text-center mb-14">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+          <h2 className="text-3xl md:text-4xl font-bold text-text mb-4">
             Three-stage AI Pipeline
           </h2>
-          <p className="text-[#9ca3af] max-w-xl mx-auto">
+          <p className="text-muted-2 max-w-xl mx-auto">
             Each stage is purpose-built for accuracy, working together to turn any
             image into structured, machine-readable data.
           </p>
@@ -100,10 +100,10 @@ export default function HomePage() {
           {features.map((f, i) => (
             <div key={f.title} className="glass rounded-2xl p-7 gradient-border hover:bg-white/[0.06] transition-all">
               <div className="flex items-center gap-3 mb-4">
-                <span className="text-xs font-mono text-[#6b7280]">Stage {i + 1}</span>
+                <span className="text-xs font-mono text-muted">Stage {i + 1}</span>
               </div>
-              <h3 className="text-white font-semibold text-lg mb-2">{f.title}</h3>
-              <p className="text-[#9ca3af] text-sm leading-relaxed">{f.desc}</p>
+              <h3 className="text-text font-semibold text-lg mb-2">{f.title}</h3>
+              <p className="text-muted-2 text-sm leading-relaxed">{f.desc}</p>
             </div>
           ))}
         </div>
@@ -117,13 +117,13 @@ export default function HomePage() {
             className="absolute inset-0 opacity-10 pointer-events-none"
             style={{ background: "radial-gradient(ellipse at 50% 0%, #00d4ff, transparent 70%)" }}
           />
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 relative z-10">
+          <h2 className="text-3xl md:text-4xl font-bold text-text mb-4 relative z-10">
             Ready to extract your first table?
           </h2>
-          <p className="text-[#9ca3af] mb-8 relative z-10">No sign-up required. Just upload and download.</p>
+          <p className="text-muted-2 mb-8 relative z-10">No sign-up required. Just upload and download.</p>
           <Link
             href="/demo"
-            className="relative z-10 inline-block px-10 py-4 rounded-xl bg-[#00d4ff] text-[#0a0b0f] font-bold text-base hover:bg-cyan-300 transition-colors glow-cyan"
+            className="relative z-10 inline-block px-10 py-4 rounded-xl bg-cyan text-background font-bold text-base hover:bg-cyan-300 transition-colors glow-cyan"
           >
             Start Parsing →
           </Link>

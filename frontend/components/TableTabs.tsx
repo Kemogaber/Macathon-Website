@@ -30,7 +30,7 @@ export default function TableTabs({ jobId, tables, forceCarousel = false }: Prop
 
   if (tables.length === 0) {
     return (
-      <div className="glass rounded-2xl p-8 text-center text-[#9ca3af]">
+      <div className="glass rounded-2xl p-8 text-center text-muted-2">
         No tables were extracted.
       </div>
     );
@@ -81,17 +81,17 @@ export default function TableTabs({ jobId, tables, forceCarousel = false }: Prop
           <button
             onClick={() => setActive((i) => Math.max(0, i - 1))}
             disabled={active === 0}
-            className="px-3 py-1.5 rounded-lg border border-white/10 hover:border-[#00d4ff]/40 disabled:opacity-30 text-sm"
+            className="px-3 py-1.5 rounded-lg border border-border hover:border-cyan/40 disabled:opacity-30 text-sm"
           >
             ← Prev
           </button>
-          <span className="font-mono text-sm text-[#9ca3af]">
+          <span className="font-mono text-sm text-muted-2">
             Table {active + 1} / {tables.length}
           </span>
           <button
             onClick={() => setActive((i) => Math.min(tables.length - 1, i + 1))}
             disabled={active === tables.length - 1}
-            className="px-3 py-1.5 rounded-lg border border-white/10 hover:border-[#00d4ff]/40 disabled:opacity-30 text-sm"
+            className="px-3 py-1.5 rounded-lg border border-border hover:border-cyan/40 disabled:opacity-30 text-sm"
           >
             Next →
           </button>
@@ -104,8 +104,8 @@ export default function TableTabs({ jobId, tables, forceCarousel = false }: Prop
               onClick={() => setActive(i)}
               className={`px-4 py-1.5 rounded-lg text-sm font-mono border transition-colors ${
                 i === active
-                  ? "border-[#00d4ff] bg-[rgba(0,212,255,0.12)] text-[#00d4ff]"
-                  : "border-white/10 text-[#9ca3af] hover:border-white/30"
+                  ? "border-cyan bg-[rgba(0,212,255,0.12)] text-cyan"
+                  : "border-border text-muted-2 hover:border-overlay-strong"
               }`}
             >
               Table {tab.index}
@@ -120,25 +120,25 @@ export default function TableTabs({ jobId, tables, forceCarousel = false }: Prop
       {/* Crop preview */}
       <div className="grid md:grid-cols-2 gap-5 mb-5">
         <div>
-          <p className="text-xs uppercase tracking-wider text-[#6b7280] mb-2">Cropped image</p>
+          <p className="text-xs uppercase tracking-wider text-muted mb-2">Cropped image</p>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={tableImageUrl(jobId, t.index)}
             alt={`Table ${t.index}`}
-            className="rounded-lg border border-white/10 max-h-72 object-contain bg-black/30"
+            className="rounded-lg border border-border max-h-72 object-contain bg-input"
           />
         </div>
         <div>
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs uppercase tracking-wider text-[#6b7280]">
+            <p className="text-xs uppercase tracking-wider text-muted">
               Recognized data — click any cell to edit
             </p>
-            <label className="flex items-center gap-2 text-xs text-[#9ca3af] font-mono cursor-pointer">
+            <label className="flex items-center gap-2 text-xs text-muted-2 font-mono cursor-pointer">
               <input
                 type="checkbox"
                 checked={showConfidence}
                 onChange={(e) => setShowConfidence(e.target.checked)}
-                className="accent-[#00d4ff]"
+                className="accent-cyan"
               />
               Confidence heatmap
             </label>
@@ -151,7 +151,7 @@ export default function TableTabs({ jobId, tables, forceCarousel = false }: Prop
             />
           ) : (
             <div
-              className="rounded-lg border border-white/10 bg-black/30 p-3 max-h-72 overflow-auto text-sm text-white [&_table]:w-full [&_th]:bg-white/5 [&_th,&_td]:px-2 [&_th,&_td]:py-1 [&_th,&_td]:border [&_th,&_td]:border-white/10"
+              className="rounded-lg border border-border bg-input p-3 max-h-72 overflow-auto text-sm text-text [&_table]:w-full [&_th]:bg-overlay [&_th,&_td]:px-2 [&_th,&_td]:py-1 [&_th,&_td]:border [&_th,&_td]:border-border"
               dangerouslySetInnerHTML={{ __html: t.html }}
             />
           )}
@@ -161,18 +161,18 @@ export default function TableTabs({ jobId, tables, forceCarousel = false }: Prop
       <div className="flex gap-2">
         <button
           onClick={downloadCsv}
-          className="px-4 py-2 rounded-lg bg-[#00d4ff] text-[#0a0b0f] font-bold text-sm hover:bg-cyan-300 transition-colors glow-cyan"
+          className="px-4 py-2 rounded-lg bg-cyan text-background font-bold text-sm hover:bg-cyan-300 transition-colors glow-cyan"
         >
           Download edited CSV
         </button>
         <a
           href={tableImageUrl(jobId, t.index)}
           download={`table_${t.index}.png`}
-          className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:border-[#00d4ff]/40 text-sm"
+          className="px-4 py-2 rounded-lg bg-overlay border border-border hover:border-cyan/40 text-sm"
         >
           Download PNG
         </a>
-        <span className="ml-auto text-xs text-[#6b7280] self-center font-mono">
+        <span className="ml-auto text-xs text-muted self-center font-mono">
           {t.cell_count} cells
         </span>
       </div>

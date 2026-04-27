@@ -15,24 +15,24 @@ export default function ResultTable({ html, csv, tableCount, processingMs }: Pro
   return (
     <div className="glass rounded-2xl overflow-hidden">
       {/* Header */}
-      <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between gap-4 flex-wrap">
+      <div className="px-5 py-4 border-b border-border flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3">
-          <span className="text-sm font-medium text-white">
+          <span className="text-sm font-medium text-text">
             {tableCount} table{tableCount !== 1 ? "s" : ""} extracted
           </span>
-          <span className="text-xs font-mono text-[#6b7280]">
+          <span className="text-xs font-mono text-muted">
             {processingMs} ms
           </span>
         </div>
-        <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1">
+        <div className="flex items-center gap-1 bg-overlay rounded-lg p-1">
           {(["html", "csv"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
               className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
                 tab === t
-                  ? "bg-[#00d4ff] text-[#0a0b0f]"
-                  : "text-[#9ca3af] hover:text-white"
+                  ? "bg-cyan text-background"
+                  : "text-muted-2 hover:text-text"
               }`}
             >
               {t.toUpperCase()}
@@ -45,11 +45,11 @@ export default function ResultTable({ html, csv, tableCount, processingMs }: Pro
       <div className="p-5 overflow-auto max-h-[420px]">
         {tab === "html" ? (
           <div
-            className="extracted-table text-sm text-white/90"
+            className="extracted-table text-sm text-text/90"
             dangerouslySetInnerHTML={{ __html: html }}
           />
         ) : (
-          <pre className="text-sm text-[#00d4ff] font-mono whitespace-pre-wrap break-all">
+          <pre className="text-sm text-cyan font-mono whitespace-pre-wrap break-all">
             {csv}
           </pre>
         )}

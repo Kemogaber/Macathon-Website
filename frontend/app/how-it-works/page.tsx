@@ -42,11 +42,11 @@ export default function HowItWorksPage() {
   return (
     <div className="max-w-4xl mx-auto px-6 py-16">
       <div className="text-center mb-16">
-        <span className="inline-block px-3 py-1 rounded-full border border-[#00d4ff]/20 bg-[rgba(0,212,255,0.1)] text-[#00d4ff] text-xs font-mono mb-4">
+        <span className="inline-block px-3 py-1 rounded-full border border-cyan/20 bg-[rgba(0,212,255,0.1)] text-cyan text-xs font-mono mb-4">
           Pipeline
         </span>
-        <h1 className="text-4xl md:text-5xl font-black text-white mb-4">How It Works</h1>
-        <p className="text-[#9ca3af] max-w-xl mx-auto leading-relaxed">
+        <h1 className="text-4xl md:text-5xl font-black text-text mb-4">How It Works</h1>
+        <p className="text-muted-2 max-w-xl mx-auto leading-relaxed">
           From raw image to structured data in five steps. Each stage is a dedicated
           AI model working in sequence.
         </p>
@@ -55,7 +55,7 @@ export default function HowItWorksPage() {
       {/* Steps */}
       <div className="relative">
         {/* Vertical connector */}
-        <div className="absolute left-8 top-10 bottom-10 w-px bg-gradient-to-b from-[#00d4ff]/40 via-[#7c3aed]/40 to-[#00d4ff]/40 hidden md:block" />
+        <div className="absolute left-8 top-10 bottom-10 w-px bg-gradient-to-b from-cyan/40 via-purple/40 to-cyan/40 hidden md:block" />
 
         <div className="space-y-6">
           {steps.map((step) => (
@@ -74,9 +74,9 @@ export default function HowItWorksPage() {
                   <span className="text-xs font-mono" style={{ color: step.color }}>
                     {step.number}
                   </span>
-                  <h2 className="text-white font-semibold text-lg">{step.title}</h2>
+                  <h2 className="text-text font-semibold text-lg">{step.title}</h2>
                 </div>
-                <p className="text-[#9ca3af] text-sm leading-relaxed">{step.desc}</p>
+                <p className="text-muted-2 text-sm leading-relaxed">{step.desc}</p>
               </div>
             </div>
           ))}
@@ -87,7 +87,7 @@ export default function HowItWorksPage() {
       <div className="mt-16 text-center">
         <Link
           href="/demo"
-          className="inline-block px-10 py-4 rounded-xl bg-[#00d4ff] text-[#0a0b0f] font-bold hover:bg-cyan-300 transition-colors glow-cyan"
+          className="inline-block px-10 py-4 rounded-xl bg-cyan text-background font-bold hover:bg-cyan-300 transition-colors glow-cyan"
         >
           Try It Yourself →
         </Link>

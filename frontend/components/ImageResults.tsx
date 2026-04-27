@@ -43,7 +43,7 @@ export default function ImageResults({ jobId, tables }: Props) {
 
   if (!group || !t) {
     return (
-      <div className="glass rounded-2xl p-8 text-center text-[#9ca3af]">
+      <div className="glass rounded-2xl p-8 text-center text-muted-2">
         No tables yet. Confirm a page to populate results.
       </div>
     );
@@ -58,20 +58,20 @@ export default function ImageResults({ jobId, tables }: Props) {
         <button
           onClick={() => setActiveImg((i) => Math.max(0, i - 1))}
           disabled={safeImg === 0}
-          className="px-3 py-1.5 rounded-lg border border-[#00d4ff]/30 bg-[rgba(0,212,255,0.06)] hover:bg-[rgba(0,212,255,0.14)] hover:border-[#00d4ff] disabled:opacity-30 text-sm text-[#00d4ff]"
+          className="px-3 py-1.5 rounded-lg border border-cyan/30 bg-[rgba(0,212,255,0.06)] hover:bg-[rgba(0,212,255,0.14)] hover:border-cyan disabled:opacity-30 text-sm text-cyan"
         >
           ← Prev image
         </button>
-        <span className="font-mono text-sm text-white text-center">
+        <span className="font-mono text-sm text-text text-center">
           Image {safeImg + 1} / {groups.length}
-          <span className="ml-2 text-xs text-[#6b7280]">
+          <span className="ml-2 text-xs text-muted">
             (page {group.pageIndex + 1})
           </span>
         </span>
         <button
           onClick={() => setActiveImg((i) => Math.min(groups.length - 1, i + 1))}
           disabled={safeImg === groups.length - 1}
-          className="px-3 py-1.5 rounded-lg border border-[#00d4ff]/30 bg-[rgba(0,212,255,0.06)] hover:bg-[rgba(0,212,255,0.14)] hover:border-[#00d4ff] disabled:opacity-30 text-sm text-[#00d4ff]"
+          className="px-3 py-1.5 rounded-lg border border-cyan/30 bg-[rgba(0,212,255,0.06)] hover:bg-[rgba(0,212,255,0.14)] hover:border-cyan disabled:opacity-30 text-sm text-cyan"
         >
           Next image →
         </button>
@@ -106,25 +106,25 @@ export default function ImageResults({ jobId, tables }: Props) {
       {/* PNG | HTML side-by-side */}
       <div className="grid md:grid-cols-2 gap-5">
         <div>
-          <p className="text-xs uppercase tracking-wider text-[#6b7280] mb-2 text-center">
+          <p className="text-xs uppercase tracking-wider text-muted mb-2 text-center">
             Cropped image
           </p>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={tableImageUrl(jobId, t.index)}
             alt={`Table ${t.index}`}
-            className="rounded-lg border border-white/10 max-h-[28rem] w-full object-contain bg-black/30"
+            className="rounded-lg border border-border max-h-[28rem] w-full object-contain bg-input"
           />
         </div>
         <div>
-          <p className="text-xs uppercase tracking-wider text-[#6b7280] mb-2 text-center">
+          <p className="text-xs uppercase tracking-wider text-muted mb-2 text-center">
             Recognized HTML
-            <span className="ml-2 text-[#9ca3af] normal-case">
+            <span className="ml-2 text-muted-2 normal-case">
               · {t.cell_count} cells
             </span>
           </p>
           <div
-            className="rounded-lg border border-white/10 bg-black/30 p-3 max-h-[28rem] overflow-auto text-sm text-white [&_table]:w-full [&_th]:bg-white/5 [&_th,&_td]:px-2 [&_th,&_td]:py-1 [&_th,&_td]:border [&_th,&_td]:border-white/10"
+            className="rounded-lg border border-border bg-input p-3 max-h-[28rem] overflow-auto text-sm text-text [&_table]:w-full [&_th]:bg-overlay [&_th,&_td]:px-2 [&_th,&_td]:py-1 [&_th,&_td]:border [&_th,&_td]:border-border"
             dangerouslySetInnerHTML={{ __html: t.html }}
           />
         </div>
@@ -185,13 +185,13 @@ function CsvDownloadMenu({ jobId, group }: { jobId: string; group: ImageGroup })
         Download CSV ▾
       </button>
       {open && (
-        <div className="absolute right-0 mt-1 z-10 w-56 rounded-lg border border-white/10 bg-[#0f1116] shadow-xl overflow-hidden">
+        <div className="absolute right-0 mt-1 z-10 w-56 rounded-lg border border-border bg-surface-3 shadow-xl overflow-hidden">
           <button
             onClick={downloadCombined}
-            className="block w-full text-left px-3 py-2 text-xs font-mono text-white hover:bg-white/5"
+            className="block w-full text-left px-3 py-2 text-xs font-mono text-text hover:bg-overlay"
           >
             One combined CSV
-            <div className="text-[#6b7280] text-[10px] mt-0.5">
+            <div className="text-muted text-[10px] mt-0.5">
               all {group.tables.length} tables in one file
             </div>
           </button>
@@ -199,10 +199,10 @@ function CsvDownloadMenu({ jobId, group }: { jobId: string; group: ImageGroup })
             href={pageCsvZipUrl(jobId, group.pageIndex)}
             download
             onClick={() => setOpen(false)}
-            className="block w-full text-left px-3 py-2 text-xs font-mono text-white hover:bg-white/5 border-t border-white/10"
+            className="block w-full text-left px-3 py-2 text-xs font-mono text-text hover:bg-overlay border-t border-border"
           >
             ZIP of CSVs
-            <div className="text-[#6b7280] text-[10px] mt-0.5">
+            <div className="text-muted text-[10px] mt-0.5">
               one file per table
             </div>
           </a>

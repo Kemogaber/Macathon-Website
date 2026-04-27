@@ -1,16 +1,67 @@
 @import "tailwindcss";
 
+/* ---------- design tokens (dark, default) ---------- */
+:root {
+  --bg: #0a0b0f;
+  --surface: #12141a;
+  --surface-2: #1a1d27;
+  --surface-3: #0f1116;
+  --border: rgba(255, 255, 255, 0.08);
+  --text: #e8eaf0;
+  --muted: #6b7280;
+  --muted-2: #9ca3af;
+  --cyan: #00d4ff;
+  --cyan-dim: rgba(0, 212, 255, 0.15);
+  --purple: #7c3aed;
+  --purple-dim: rgba(124, 58, 237, 0.15);
+  --glass-bg: rgba(255, 255, 255, 0.04);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --grid-line: rgba(0, 212, 255, 0.03);
+  --scrollbar-track: var(--bg);
+  --overlay: rgba(255, 255, 255, 0.05);
+  --overlay-strong: rgba(255, 255, 255, 0.30);
+  --input: rgba(0, 0, 0, 0.30);
+}
+
+:root[data-theme="light"] {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --surface-2: #eef0f6;
+  --surface-3: #ffffff;
+  --border: rgba(15, 23, 42, 0.10);
+  --text: #0f172a;
+  --muted: #64748b;
+  --muted-2: #475569;
+  --cyan: #0891b2;
+  --cyan-dim: rgba(8, 145, 178, 0.12);
+  --purple: #7c3aed;
+  --purple-dim: rgba(124, 58, 237, 0.12);
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(15, 23, 42, 0.08);
+  --grid-line: rgba(8, 145, 178, 0.05);
+  --scrollbar-track: #e5e7eb;
+  --overlay: rgba(15, 23, 42, 0.05);
+  --overlay-strong: rgba(15, 23, 42, 0.20);
+  --input: rgba(15, 23, 42, 0.04);
+}
+
+/* ---------- Tailwind v4 theme: expose tokens as utilities ---------- */
 @theme inline {
-  --color-background: #0a0b0f;
-  --color-surface: #12141a;
-  --color-surface-2: #1a1d27;
-  --color-border: rgba(255, 255, 255, 0.08);
-  --color-cyan: #00d4ff;
-  --color-cyan-dim: rgba(0, 212, 255, 0.15);
-  --color-purple: #7c3aed;
-  --color-purple-dim: rgba(124, 58, 237, 0.15);
-  --color-text: #e8eaf0;
-  --color-muted: #6b7280;
+  --color-background: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-muted-2: var(--muted-2);
+  --color-cyan: var(--cyan);
+  --color-cyan-dim: var(--cyan-dim);
+  --color-purple: var(--purple);
+  --color-purple-dim: var(--purple-dim);
+  --color-overlay: var(--overlay);
+  --color-overlay-strong: var(--overlay-strong);
+  --color-input: var(--input);
   --font-sans: var(--font-inter);
 }
 
@@ -23,8 +74,8 @@ html {
 }
 
 body {
-  background-color: var(--color-background);
-  color: var(--color-text);
+  background-color: var(--bg);
+  color: var(--text);
   font-family: var(--font-inter), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
@@ -34,35 +85,39 @@ body {
   width: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--color-background);
+  background: var(--scrollbar-track);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 212, 255, 0.3);
+  background: color-mix(in srgb, var(--cyan) 30%, transparent);
   border-radius: 3px;
 }
 
 /* Glow utilities */
 .glow-cyan {
-  box-shadow: 0 0 20px rgba(0, 212, 255, 0.3), 0 0 40px rgba(0, 212, 255, 0.1);
+  box-shadow:
+    0 0 20px color-mix(in srgb, var(--cyan) 30%, transparent),
+    0 0 40px color-mix(in srgb, var(--cyan) 10%, transparent);
 }
 .glow-cyan-text {
-  text-shadow: 0 0 20px rgba(0, 212, 255, 0.6);
+  text-shadow: 0 0 20px color-mix(in srgb, var(--cyan) 60%, transparent);
 }
 .glow-purple {
-  box-shadow: 0 0 20px rgba(124, 58, 237, 0.4), 0 0 40px rgba(124, 58, 237, 0.15);
+  box-shadow:
+    0 0 20px color-mix(in srgb, var(--purple) 40%, transparent),
+    0 0 40px color-mix(in srgb, var(--purple) 15%, transparent);
 }
 
 /* Glass card */
 .glass {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--glass-bg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--glass-border);
 }
 
 /* Gradient text */
 .gradient-text {
-  background: linear-gradient(135deg, #00d4ff 0%, #7c3aed 100%);
+  background: linear-gradient(135deg, var(--cyan) 0%, var(--purple) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -78,8 +133,14 @@ body {
   inset: 0;
   border-radius: inherit;
   padding: 1px;
-  background: linear-gradient(135deg, rgba(0, 212, 255, 0.4), rgba(124, 58, 237, 0.4));
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--cyan) 40%, transparent),
+    color-mix(in srgb, var(--purple) 40%, transparent)
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   pointer-events: none;
@@ -88,7 +149,7 @@ body {
 /* Grid background pattern */
 .grid-bg {
   background-image:
-    linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
   background-size: 40px 40px;
 }

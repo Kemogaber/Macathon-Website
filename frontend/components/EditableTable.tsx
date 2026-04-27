@@ -17,12 +17,12 @@ export default function EditableTable({ cells, onChange, showConfidence }: Props
   const { grid, rows, cols } = useMemo(() => buildGrid(cells), [cells]);
 
   if (rows === 0 || cols === 0) {
-    return <p className="text-[#9ca3af] text-sm">No cells to display.</p>;
+    return <p className="text-muted-2 text-sm">No cells to display.</p>;
   }
 
   return (
-    <div className="overflow-auto rounded-lg border border-white/10 bg-black/30 max-h-[28rem]">
-      <table className="w-full border-collapse text-sm text-white">
+    <div className="overflow-auto rounded-lg border border-border bg-input max-h-[28rem]">
+      <table className="w-full border-collapse text-sm text-text">
         <tbody>
           {Array.from({ length: rows }).map((_, r) => (
             <tr key={r}>
@@ -38,18 +38,18 @@ export default function EditableTable({ cells, onChange, showConfidence }: Props
                     key={c}
                     rowSpan={cell.rowspan}
                     colSpan={cell.colspan}
-                    className="border border-white/10 align-top p-0 relative"
+                    className="border border-border align-top p-0 relative"
                     style={{ backgroundColor: bg }}
                   >
                     <input
                       value={cell.text}
                       onChange={(e) => onChange(cell.row, cell.col, e.target.value)}
-                      className={`w-full bg-transparent px-2 py-1 outline-none focus:bg-[#00d4ff]/10 ${
+                      className={`w-full bg-transparent px-2 py-1 outline-none focus:bg-cyan/10 ${
                         isHeader ? "font-semibold" : ""
                       }`}
                     />
                     {showConfidence && conf !== null && (
-                      <span className="absolute top-0.5 right-1 text-[9px] font-mono text-white/50">
+                      <span className="absolute top-0.5 right-1 text-[9px] font-mono text-text/50">
                         {Math.round(conf * 100)}
                       </span>
                     )}

@@ -233,7 +233,7 @@ export default function QuadEditor({
           <button
             type="button"
             onClick={() => bumpZoom(-1)}
-            className="w-8 h-8 rounded-lg border border-white/10 hover:border-[#00d4ff]/40 text-sm"
+            className="w-8 h-8 rounded-lg border border-border hover:border-cyan/40 text-sm"
             title="Zoom out"
           >
             −
@@ -243,8 +243,8 @@ export default function QuadEditor({
             onClick={() => setZoom("fit")}
             className={`px-3 h-8 rounded-lg border text-xs font-mono ${
               zoom === "fit"
-                ? "border-[#00d4ff] bg-[rgba(0,212,255,0.12)] text-[#00d4ff]"
-                : "border-white/10 hover:border-[#00d4ff]/40"
+                ? "border-cyan bg-[rgba(0,212,255,0.12)] text-cyan"
+                : "border-border hover:border-cyan/40"
             }`}
             title="Fit to view"
           >
@@ -253,23 +253,23 @@ export default function QuadEditor({
           <button
             type="button"
             onClick={() => bumpZoom(1)}
-            className="w-8 h-8 rounded-lg border border-white/10 hover:border-[#00d4ff]/40 text-sm"
+            className="w-8 h-8 rounded-lg border border-border hover:border-cyan/40 text-sm"
             title="Zoom in"
           >
             +
           </button>
-          <span className="text-xs text-[#6b7280] font-mono ml-2">
+          <span className="text-xs text-muted font-mono ml-2">
             {Math.round(scale * 100)}%
           </span>
         </div>
-        <span className="text-xs text-[#6b7280] font-mono">
+        <span className="text-xs text-muted font-mono">
           drag edges to slide · top knob to rotate
         </span>
       </div>
 
       <div
         ref={frameRef}
-        className="relative bg-black/40 rounded-xl overflow-auto flex items-center justify-center"
+        className="relative bg-input rounded-xl overflow-auto flex items-center justify-center"
         style={{ maxHeight: `${FRAME_MAX_VH}vh`, minHeight: 320 }}
       >
         <div
