@@ -2,6 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { streamChat, type ChatMessage } from "@/lib/api";
+import {
+  ChartBlock,
+  PatchBlock,
+  parseSegments,
+} from "@/components/ChatBlocks";
 
 interface Props {
   jobId?: string;
@@ -190,7 +195,17 @@ export default function ChatWidget({ jobId, attachedTableCount = 0 }: Props) {
             )}
             {messages.map((m, i) => (
               <Bubble key={i} role={m.role}>
-                {m.content || (busy && i === messages.length - 1 ? <span className="opacity-60">…</span> : "")}
+                {m.role === "assistant" ? (
+                  m.content ? (
+                    <AssistantContent content={m.content} />
+                  ) : busy && i === messages.length - 1 ? (
+                    <span className="opacity-60">…</span>
+                  ) : (
+                    ""
+                  )
+                ) : (
+                  m.content
+                )}
               </Bubble>
             ))}
             {error && (
@@ -238,6 +253,27 @@ export default function ChatWidget({ jobId, attachedTableCount = 0 }: Props) {
           </div>
         </div>
       )}
+    </>
+  );
+}
+
+function AssistantContent({ content }: { content: string }) {
+  const segments = parseSegments(content);
+  return (
+    <>
+      {segments.map((s, i) => {
+        if (s.kind === "text") {
+          return (
+            <span key={i} className="whitespace-pre-wrap break-words">
+              {s.text}
+            </span>
+          );
+        }
+        if (s.kind === "chart") {
+          return <ChartBlock key={i} spec={s.spec} />;
+        }
+        return <PatchBlock key={i} spec={s.spec} />;
+      })}
     </>
   );
 }

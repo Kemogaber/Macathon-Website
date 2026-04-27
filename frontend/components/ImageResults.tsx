@@ -120,6 +120,35 @@ export default function ImageResults({ jobId, tables }: Props) {
     });
   }, [tables]);
 
+  // Listen for chat-suggested patches. The chat sends `tableIndex` as the
+  // 1-based position in the attached context (same as job.tables order),
+  // not TableResult.index — look up the actual TableResult here.
+  useEffect(() => {
+    function onPatch(e: Event) {
+      const ce = e as CustomEvent<{
+        tableIndex: number;
+        row: number;
+        col: number;
+        value: string;
+      }>;
+      const d = ce.detail;
+      const target = tables[d.tableIndex - 1];
+      if (!target) {
+        toast.error("Couldn't apply", `Table ${d.tableIndex} not found`);
+        return;
+      }
+      setEdits((prev) => {
+        const list = (prev[target.index] ?? target.cells ?? []).map((c) =>
+          c.row === d.row && c.col === d.col ? { ...c, text: d.value } : c,
+        );
+        return { ...prev, [target.index]: list };
+      });
+      toast.success("Patch applied", `Table ${d.tableIndex} · row ${d.row + 1}, col ${d.col + 1}`);
+    }
+    window.addEventListener("tablex:applyPatch", onPatch);
+    return () => window.removeEventListener("tablex:applyPatch", onPatch);
+  }, [tables, toast]);
+
   const safeImg = Math.min(activeImg, Math.max(0, groups.length - 1));
   const group = groups[safeImg];
   const safeTable = Math.min(

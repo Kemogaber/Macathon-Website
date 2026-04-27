@@ -96,8 +96,39 @@ _CHAT_SYSTEM_PROMPT = (
     "may have attached them as CSV in the next message. Answer questions "
     "about the data, help interpret values, suggest fixes for OCR errors, "
     "and explain how to use the app (upload, detect, confirm, recognize, "
-    "edit cells, download CSV/XLSX/HTML). Keep responses concise and "
-    "well-formatted. If you spot likely data issues, point them out."
+    "edit cells, download CSV/XLSX/HTML). Keep responses concise.\n\n"
+    "## Charts\n"
+    "When the user asks for a chart, plot, or graph, emit a fenced code "
+    "block tagged `chart` containing JSON. The frontend renders it "
+    "inline with Recharts. Schema:\n"
+    "```chart\n"
+    '{\n'
+    '  "type": "bar" | "line" | "pie" | "scatter",\n'
+    '  "title": "optional title",\n'
+    '  "x": "name of x-axis field",\n'
+    '  "y": "name of y-axis field" | ["field1", "field2"],\n'
+    '  "data": [{"<x>": ..., "<y>": ...}, ...]\n'
+    '}\n'
+    "```\n"
+    "Use real values from the attached tables — never invent numbers. "
+    "Briefly describe the chart in prose alongside the block.\n\n"
+    "## Cell fixes\n"
+    "When you spot a likely OCR error and want to suggest a single-cell "
+    "fix, emit a fenced code block tagged `patch` with JSON. The "
+    "frontend renders these as Apply / Reject buttons that update the "
+    "user's editable table. Schema:\n"
+    "```patch\n"
+    '{\n'
+    '  "table_index": <table number 1..N as shown in attached context>,\n'
+    '  "row": <0-based row index>,\n'
+    '  "col": <0-based col index>,\n'
+    '  "new_value": "corrected text",\n'
+    '  "note": "why this is likely a fix"\n'
+    '}\n'
+    "```\n"
+    "Only emit a patch when confident; otherwise mention the concern in "
+    "prose without a patch block. Multiple patch blocks per reply are "
+    "allowed."
 )
 
 
@@ -243,40 +274,6 @@ async def create_job(files: list[UploadFile] = File(...)):
         raise HTTPException(400, str(e))
     except Exception as e:
         raise HTTPException(500, f"Failed to process files: {e}")
-    return {"job_id": job.id, "status": job.status, "pages": job.pages}
-
-
-@api.post("/api/jobs/{job_id}/pages")
-async def add_pages(job_id: str, files: list[UploadFile] = File(...)):
-    if jobsvc.get_job(job_id) is None:
-        raise HTTPException(404, "job not found")
-    uploads: list[tuple[bytes, str]] = []
-    total = 0
-    for f in files:
-        if f.content_type not in ALLOWED_TYPES:
-            raise HTTPException(415, f"Unsupported file type: {f.content_type}")
-        data = await f.read()
-        if len(data) > MAX_BYTES:
-            raise HTTPException(413, f"{f.filename}: file too large (max 25 MB).")
-        if not data:
-            raise HTTPException(400, f"{f.filename}: empty file.")
-        total += len(data)
-        if total > MAX_TOTAL:
-            raise HTTPException(413, "Combined upload too large (max 100 MB).")
-        uploads.append((data, f.content_type))
-    try:
-        job = await asyncio.to_thread(jobsvc.add_pages_to_job, job_id, uploads)
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-    return {"job_id": job.id, "status": job.status, "pages": job.pages}
-
-
-@api.delete("/api/jobs/{job_id}/pages/{page_index}")
-def delete_page(job_id: str, page_index: int):
-    try:
-        job = jobsvc.remove_page(job_id, page_index)
-    except ValueError as e:
-        raise HTTPException(404, str(e))
     return {"job_id": job.id, "status": job.status, "pages": job.pages}
 
 
