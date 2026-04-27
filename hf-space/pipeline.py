@@ -602,6 +602,9 @@ class TableExtractionPipeline:
                 {"bbox": b, "confidence": round(c, 3)}
                 for b, c in zip(bboxes, confs)
             ],
+            # Structured per-table data: list of
+            # {table_id, bbox, cells: [{bbox, row, col, rowspan, colspan, text}]}
+            "tables": all_tables,
         }
 
 
