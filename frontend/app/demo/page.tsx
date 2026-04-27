@@ -18,7 +18,7 @@ import {
   type JobStatus,
 } from "@/lib/api";
 import { useDemoStore, type PerPageState, type Step } from "@/lib/demoStore";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 export default function DemoPage() {
   const {
@@ -29,6 +29,8 @@ export default function DemoPage() {
     currentPage,
     tables,
     errorMsg,
+    busy,
+    confirmProgress,
     setStep,
     setFiles,
     setJob,
@@ -36,14 +38,11 @@ export default function DemoPage() {
     setCurrentPage,
     setTables,
     setErrorMsg,
+    setBusy,
+    setConfirmProgress,
     reset,
     pollRef,
   } = useDemoStore();
-
-  const [busy, setBusy] = useState<
-    null | "upload" | "detect-one" | "detect-all" | "confirm-one" | "confirm-all"
-  >(null);
-  const [confirmProgress, setConfirmProgress] = useState(0);
 
   // ---------- step 1 → 2 : upload only (no auto-detect) ----------
   async function handleUpload() {

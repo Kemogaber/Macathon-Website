@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import ThemeToggle from "@/components/ThemeToggle";
+import BusyIndicator from "@/components/BusyIndicator";
 
 const links = [
   { href: "/", label: "Home" },
@@ -26,6 +27,9 @@ export default function Navbar() {
         </Link>
 
         <ul className="hidden md:flex items-center gap-1">
+          <li className="mr-2">
+            <BusyIndicator />
+          </li>
           <li className="mr-1">
             <ThemeToggle />
           </li>

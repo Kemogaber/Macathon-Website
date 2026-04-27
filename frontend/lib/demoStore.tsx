@@ -21,6 +21,13 @@ export interface PerPageState {
   recognized: boolean;
 }
 
+export type BusyKind =
+  | "upload"
+  | "detect-one"
+  | "detect-all"
+  | "confirm-one"
+  | "confirm-all";
+
 interface DemoState {
   step: Step;
   files: File[];
@@ -29,6 +36,8 @@ interface DemoState {
   currentPage: number;
   tables: TableData[];
   errorMsg: string;
+  busy: BusyKind | null;
+  confirmProgress: number;
 }
 
 interface DemoContextValue extends DemoState {
@@ -39,6 +48,8 @@ interface DemoContextValue extends DemoState {
   setCurrentPage: React.Dispatch<React.SetStateAction<number>>;
   setTables: React.Dispatch<React.SetStateAction<TableData[]>>;
   setErrorMsg: (s: string) => void;
+  setBusy: (b: BusyKind | null) => void;
+  setConfirmProgress: (n: number) => void;
   reset: () => void;
   pollRef: React.MutableRefObject<ReturnType<typeof setInterval> | null>;
 }
@@ -53,6 +64,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const [currentPage, setCurrentPage] = useState(0);
   const [tables, setTables] = useState<TableData[]>([]);
   const [errorMsg, setErrorMsg] = useState("");
+  const [busy, setBusy] = useState<BusyKind | null>(null);
+  const [confirmProgress, setConfirmProgress] = useState(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const reset = useCallback(() => {
@@ -65,6 +78,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     setCurrentPage(0);
     setTables([]);
     setErrorMsg("");
+    setBusy(null);
+    setConfirmProgress(0);
   }, []);
 
   const value = useMemo<DemoContextValue>(
@@ -76,6 +91,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       currentPage,
       tables,
       errorMsg,
+      busy,
+      confirmProgress,
       setStep,
       setFiles,
       setJob,
@@ -83,10 +100,23 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       setCurrentPage,
       setTables,
       setErrorMsg,
+      setBusy,
+      setConfirmProgress,
       reset,
       pollRef,
     }),
-    [step, files, job, pageStates, currentPage, tables, errorMsg, reset],
+    [
+      step,
+      files,
+      job,
+      pageStates,
+      currentPage,
+      tables,
+      errorMsg,
+      busy,
+      confirmProgress,
+      reset,
+    ],
   );
 
   return <DemoContext.Provider value={value}>{children}</DemoContext.Provider>;
