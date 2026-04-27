@@ -157,8 +157,8 @@ def run_recognize(job_id: str, confirmed: list[dict]) -> None:
         return
     job.status = "running"
     job.progress = 0.0
-    job.tables = []
     job.error = None
+    start_index = len(job.tables)  # append, don't wipe — supports per-page parsing
 
     pipeline = get_pipeline()
     out_dir = _job_dir(job_id)
@@ -167,7 +167,8 @@ def run_recognize(job_id: str, confirmed: list[dict]) -> None:
     try:
         # Cache page images so we don't re-read for repeated page_index
         page_cache: dict[int, np.ndarray] = {}
-        for idx, item in enumerate(confirmed, start=1):
+        for offset, item in enumerate(confirmed, start=1):
+            idx = start_index + offset
             page_index = int(item["page_index"])
             quad = item["quad"]
 
@@ -190,7 +191,7 @@ def run_recognize(job_id: str, confirmed: list[dict]) -> None:
                 csv=r["csv"],
                 cell_count=len(r["cells"]),
             ))
-            job.progress = idx / total
+            job.progress = offset / total
 
         job.status = "done"
         job.progress = 1.0

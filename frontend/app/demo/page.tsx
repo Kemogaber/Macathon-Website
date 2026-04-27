@@ -2,7 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import UploadZone from "@/components/UploadZone";
-import QuadEditor from "@/components/QuadEditor";
+import QuadEditor, {
+  quadToRect,
+  rectToQuad,
+  type RectQuad,
+} from "@/components/QuadEditor";
 import TableTabs from "@/components/TableTabs";
 import {
   createJob,
@@ -13,15 +17,16 @@ import {
   type ConfirmedQuad,
   type JobInit,
   type JobStatus,
-  type Quad,
+  type TableData,
 } from "@/lib/api";
 
-type Step = "upload" | "review" | "processing" | "results" | "error";
+type Step = "upload" | "review" | "error";
 
 interface PerPageState {
-  quads: Quad[];           // editable copies of detected quads, plus any user-added
-  confirmed: boolean;
-  activeQuad: number;
+  rects: RectQuad[];
+  activeRect: number;
+  parsed: boolean;        // true once this page's tables have been parsed
+  skipped: boolean;       // user marked the page as skipped (red X)
 }
 
 export default function DemoPage() {
@@ -33,148 +38,151 @@ export default function DemoPage() {
   const [pageStates, setPageStates] = useState<PerPageState[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
 
-  const [progress, setProgress] = useState(0);
-  const [status, setStatus] = useState<JobStatus | null>(null);
+  const [parsing, setParsing] = useState(false);
+  const [parseProgress, setParseProgress] = useState(0);
+  const [tables, setTables] = useState<TableData[]>([]);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ---------- step 1 → 2 : upload + detect ----------
   async function handleStartDetect() {
     if (!file) return;
-    setStep("processing");
-    setProgress(0);
     setErrorMsg("");
+    setParsing(true);
     try {
       const j = await createJob(file);
       setJob(j);
       setPageStates(
         j.pages.map((p) => ({
-          quads: p.detections.map((d) => d.quad),
-          confirmed: false,
-          activeQuad: 0,
+          rects: p.detections.map((d) => quadToRect(d.quad)),
+          activeRect: 0,
+          parsed: false,
+          skipped: false,
         })),
       );
       setCurrentPage(0);
+      setTables([]);
       setStep("review");
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : "Upload failed.");
       setStep("error");
+    } finally {
+      setParsing(false);
     }
   }
 
-  // ---------- step 2 → 3 : confirm + recognize ----------
-  function setQuad(pageIdx: number, quadIdx: number, quad: Quad) {
+  // ---------- per-page editing ----------
+  function setRect(pageIdx: number, ri: number, rect: RectQuad) {
     setPageStates((prev) => {
       const next = [...prev];
       const p = { ...next[pageIdx] };
-      p.quads = [...p.quads];
-      p.quads[quadIdx] = quad;
+      p.rects = [...p.rects];
+      p.rects[ri] = rect;
       next[pageIdx] = p;
       return next;
     });
   }
 
-  function toggleConfirm(pageIdx: number) {
+  function setActiveRect(pageIdx: number, ri: number) {
     setPageStates((prev) => {
       const next = [...prev];
-      next[pageIdx] = { ...next[pageIdx], confirmed: !next[pageIdx].confirmed };
+      next[pageIdx] = { ...next[pageIdx], activeRect: ri };
       return next;
     });
   }
 
-  function setActiveQuad(pageIdx: number, qi: number) {
-    setPageStates((prev) => {
-      const next = [...prev];
-      next[pageIdx] = { ...next[pageIdx], activeQuad: qi };
-      return next;
-    });
-  }
-
-  function removeQuad(pageIdx: number, qi: number) {
+  function removeRect(pageIdx: number, ri: number) {
     setPageStates((prev) => {
       const next = [...prev];
       const p = { ...next[pageIdx] };
-      p.quads = p.quads.filter((_, i) => i !== qi);
-      p.activeQuad = Math.max(0, Math.min(p.activeQuad, p.quads.length - 1));
+      p.rects = p.rects.filter((_, i) => i !== ri);
+      p.activeRect = Math.max(0, Math.min(p.activeRect, p.rects.length - 1));
       next[pageIdx] = p;
       return next;
     });
   }
 
-  function addQuad(pageIdx: number) {
+  function addRect(pageIdx: number) {
     if (!job) return;
     const page = job.pages[pageIdx];
-    const w = page.width;
-    const h = page.height;
-    const margin = Math.min(w, h) * 0.15;
-    const newQuad: Quad = [
-      [margin, margin],
-      [w - margin, margin],
-      [w - margin, h - margin],
-      [margin, h - margin],
-    ];
+    const margin = Math.min(page.width, page.height) * 0.15;
+    const newRect: RectQuad = {
+      cx: page.width / 2,
+      cy: page.height / 2,
+      w: page.width - margin * 2,
+      h: page.height - margin * 2,
+      rot: 0,
+    };
     setPageStates((prev) => {
       const next = [...prev];
       const p = { ...next[pageIdx] };
-      p.quads = [...p.quads, newQuad];
-      p.activeQuad = p.quads.length - 1;
+      p.rects = [...p.rects, newRect];
+      p.activeRect = p.rects.length - 1;
       next[pageIdx] = p;
       return next;
     });
   }
 
-  async function handleProcess() {
-    if (!job) return;
-    const confirmed: ConfirmedQuad[] = [];
-    pageStates.forEach((p, idx) => {
-      if (!p.confirmed) return;
-      const detected = job.pages[idx].detections;
-      p.quads.forEach((q, qi) => {
-        const score = detected[qi]?.score;
-        confirmed.push({
-          page_index: idx,
-          quad: q,
-          score: typeof score === "number" ? score : 0,
-        });
-      });
+  function toggleSkip(pageIdx: number) {
+    setPageStates((prev) => {
+      const next = [...prev];
+      next[pageIdx] = { ...next[pageIdx], skipped: !next[pageIdx].skipped };
+      return next;
     });
-    if (confirmed.length === 0) {
-      setErrorMsg("Confirm at least one page before processing.");
-      return;
-    }
+  }
 
-    setStep("processing");
-    setProgress(0);
+  // ---------- parse a single page ----------
+  async function parseCurrentPage() {
+    if (!job || parsing) return;
+    const ps = pageStates[currentPage];
+    if (!ps || ps.parsed || ps.skipped || ps.rects.length === 0) return;
+
+    const confirmed: ConfirmedQuad[] = ps.rects.map((r) => ({
+      page_index: currentPage,
+      quad: rectToQuad(r),
+      score: 0,
+    }));
+
+    setParsing(true);
+    setParseProgress(0);
     setErrorMsg("");
     try {
       await startRecognize(job.job_id, confirmed);
       pollRef.current = setInterval(async () => {
         try {
-          const s = await getJobStatus(job.job_id);
-          setStatus(s);
-          setProgress(s.progress);
+          const s: JobStatus = await getJobStatus(job.job_id);
+          setParseProgress(s.progress);
+          setTables(s.tables);
           if (s.status === "done") {
             if (pollRef.current) clearInterval(pollRef.current);
-            setStep("results");
+            setPageStates((prev) => {
+              const next = [...prev];
+              next[currentPage] = { ...next[currentPage], parsed: true };
+              return next;
+            });
+            setParsing(false);
           } else if (s.status === "error") {
             if (pollRef.current) clearInterval(pollRef.current);
             setErrorMsg(s.error ?? "Recognition failed.");
-            setStep("error");
+            setParsing(false);
           }
         } catch (e) {
           if (pollRef.current) clearInterval(pollRef.current);
           setErrorMsg(e instanceof Error ? e.message : "Polling failed.");
-          setStep("error");
+          setParsing(false);
         }
-      }, 1000);
+      }, 800);
     } catch (e) {
-      setErrorMsg(e instanceof Error ? e.message : "Failed to start processing.");
-      setStep("error");
+      setErrorMsg(e instanceof Error ? e.message : "Failed to start parsing.");
+      setParsing(false);
     }
   }
 
-  useEffect(() => () => {
-    if (pollRef.current) clearInterval(pollRef.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    },
+    [],
+  );
 
   function reset() {
     setStep("upload");
@@ -182,26 +190,25 @@ export default function DemoPage() {
     setJob(null);
     setPageStates([]);
     setCurrentPage(0);
-    setStatus(null);
-    setProgress(0);
+    setTables([]);
+    setParsing(false);
+    setParseProgress(0);
     setErrorMsg("");
   }
 
   // ---------- render ----------
-  const confirmedCount = pageStates.filter((p) => p.confirmed).length;
-  const totalQuads = pageStates.reduce(
-    (sum, p) => sum + (p.confirmed ? p.quads.length : 0),
-    0,
-  );
+  const parsedCount = pageStates.filter((p) => p.parsed).length;
+  const skippedCount = pageStates.filter((p) => p.skipped).length;
+  const ps = pageStates[currentPage];
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-12">
+    <div className="max-w-6xl mx-auto px-6 py-12">
       <div className="text-center mb-10">
         <span className="inline-block px-3 py-1 rounded-full border border-[#00d4ff]/20 bg-[rgba(0,212,255,0.1)] text-[#00d4ff] text-xs font-mono mb-4">
           Live Demo
         </span>
         <h1 className="text-4xl font-black text-white mb-3">Table Extractor</h1>
-        <Stepper step={step} />
+        <Stepper step={step} hasResults={tables.length > 0} />
       </div>
 
       {step === "upload" && (
@@ -214,17 +221,19 @@ export default function DemoPage() {
               </p>
               <button
                 onClick={handleStartDetect}
-                className="px-6 py-2.5 rounded-xl bg-[#00d4ff] text-[#0a0b0f] font-bold text-sm hover:bg-cyan-300 transition-colors glow-cyan"
+                disabled={parsing}
+                className="px-6 py-2.5 rounded-xl bg-[#00d4ff] text-[#0a0b0f] font-bold text-sm hover:bg-cyan-300 transition-colors glow-cyan disabled:opacity-50"
               >
-                Detect Tables →
+                {parsing ? "Detecting…" : "Detect Tables →"}
               </button>
             </div>
           )}
         </div>
       )}
 
-      {step === "review" && job && pageStates[currentPage] && (
+      {step === "review" && job && ps && (
         <div className="space-y-5">
+          {/* page nav */}
           <div className="glass rounded-2xl p-5 flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-3">
               <button
@@ -238,88 +247,106 @@ export default function DemoPage() {
                 Page {currentPage + 1} / {job.pages.length}
               </span>
               <button
-                onClick={() => setCurrentPage((i) => Math.min(job.pages.length - 1, i + 1))}
+                onClick={() =>
+                  setCurrentPage((i) => Math.min(job.pages.length - 1, i + 1))
+                }
                 disabled={currentPage === job.pages.length - 1}
                 className="px-3 py-1.5 rounded-lg border border-white/10 hover:border-[#00d4ff]/40 disabled:opacity-30 text-sm"
               >
                 Next →
               </button>
+              <PageStatusBadge state={ps} />
             </div>
             <div className="flex items-center gap-3">
               <span className="text-xs text-[#6b7280] font-mono">
-                {confirmedCount} / {job.pages.length} pages confirmed · {totalQuads} tables
+                {parsedCount} parsed · {skippedCount} skipped · {tables.length}{" "}
+                tables so far
               </span>
               <button
-                onClick={() => toggleConfirm(currentPage)}
-                className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-colors ${
-                  pageStates[currentPage].confirmed
-                    ? "bg-emerald-500/20 border border-emerald-500/40 text-emerald-300"
-                    : "bg-[#00d4ff] text-[#0a0b0f] hover:bg-cyan-300"
+                onClick={() => toggleSkip(currentPage)}
+                disabled={ps.parsed}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors disabled:opacity-40 ${
+                  ps.skipped
+                    ? "bg-red-500/20 border border-red-500/40 text-red-300"
+                    : "bg-white/5 border border-white/10 hover:border-red-400/40"
                 }`}
+                title="Skip this page"
               >
-                {pageStates[currentPage].confirmed ? "✓ Confirmed" : "Confirm Page"}
+                {ps.skipped ? "✗ Skipped — click to undo" : "✗ Skip page"}
               </button>
             </div>
           </div>
 
-          <div className="glass rounded-2xl p-5">
-            <div className="flex items-center justify-between mb-3">
+          {/* editor */}
+          <div
+            className={`glass rounded-2xl p-5 ${ps.skipped ? "opacity-50" : ""}`}
+          >
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <p className="text-xs uppercase tracking-wider text-[#6b7280]">
-                Adjust the blue corners. {pageStates[currentPage].quads.length} table(s) on this page.
+                {ps.parsed
+                  ? "✓ Page parsed — locked. Navigate to another page."
+                  : ps.skipped
+                    ? "Page skipped. Toggle skip off to edit."
+                    : `Drag edges/rotate to fit. ${ps.rects.length} table(s) on this page.`}
               </p>
               <div className="flex gap-2">
                 <button
-                  onClick={() => addQuad(currentPage)}
-                  className="px-3 py-1 rounded-lg border border-white/10 hover:border-[#00d4ff]/40 text-xs"
+                  onClick={() => addRect(currentPage)}
+                  disabled={ps.parsed || ps.skipped}
+                  className="px-3 py-1 rounded-lg border border-white/10 hover:border-[#00d4ff]/40 text-xs disabled:opacity-40"
                 >
-                  + Add quad
+                  + Add table
                 </button>
-                {pageStates[currentPage].quads.length > 0 && (
-                  <button
-                    onClick={() =>
-                      removeQuad(currentPage, pageStates[currentPage].activeQuad)
-                    }
-                    className="px-3 py-1 rounded-lg border border-white/10 hover:border-red-400/40 text-xs"
-                  >
-                    − Remove active
-                  </button>
-                )}
               </div>
             </div>
 
             <div className="flex flex-wrap gap-2 mb-4">
-              {pageStates[currentPage].quads.map((_, qi) => (
-                <button
-                  key={qi}
-                  onClick={() => setActiveQuad(currentPage, qi)}
-                  className={`px-3 py-1 rounded-lg text-xs font-mono border transition-colors ${
-                    qi === pageStates[currentPage].activeQuad
+              {ps.rects.map((_, ri) => (
+                <span
+                  key={ri}
+                  className={`inline-flex items-center gap-1 rounded-lg text-xs font-mono border transition-colors ${
+                    ri === ps.activeRect
                       ? "border-[#00d4ff] bg-[rgba(0,212,255,0.12)] text-[#00d4ff]"
-                      : "border-white/10 text-[#9ca3af] hover:border-white/30"
+                      : "border-white/10 text-[#9ca3af]"
                   }`}
                 >
-                  Quad {qi + 1}
-                </button>
+                  <button
+                    onClick={() => setActiveRect(currentPage, ri)}
+                    className="px-3 py-1"
+                  >
+                    Table {ri + 1}
+                  </button>
+                  {!ps.parsed && !ps.skipped && (
+                    <button
+                      onClick={() => removeRect(currentPage, ri)}
+                      title="Remove this region"
+                      className="w-5 h-5 mr-1 rounded-md flex items-center justify-center text-red-400 hover:bg-red-500/20 hover:text-red-300"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </span>
               ))}
-              {pageStates[currentPage].quads.length === 0 && (
+              {ps.rects.length === 0 && (
                 <span className="text-xs text-[#6b7280] font-mono">
-                  No detections — use “+ Add quad” to draw one.
+                  No detections — use “+ Add table” to draw one.
                 </span>
               )}
             </div>
 
-            <div className="flex justify-center bg-black/40 rounded-xl p-3">
-              <QuadEditor
-                imageUrl={pageImageUrl(job.job_id, currentPage)}
-                imageWidth={job.pages[currentPage].width}
-                imageHeight={job.pages[currentPage].height}
-                quads={pageStates[currentPage].quads}
-                activeQuadIndex={pageStates[currentPage].activeQuad}
-                onQuadChange={(qi, q) => setQuad(currentPage, qi, q)}
-              />
-            </div>
+            <QuadEditor
+              imageUrl={pageImageUrl(job.job_id, currentPage)}
+              imageWidth={job.pages[currentPage].width}
+              imageHeight={job.pages[currentPage].height}
+              rects={ps.rects}
+              activeIndex={ps.activeRect}
+              onRectChange={(ri, r) => setRect(currentPage, ri, r)}
+              onRemove={(ri) => removeRect(currentPage, ri)}
+              locked={ps.parsed || ps.skipped}
+            />
           </div>
 
+          {/* parse controls */}
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <button
               onClick={reset}
@@ -327,56 +354,51 @@ export default function DemoPage() {
             >
               ← Start over
             </button>
-            <button
-              onClick={handleProcess}
-              disabled={confirmedCount === 0}
-              className="px-6 py-2.5 rounded-xl bg-[#00d4ff] text-[#0a0b0f] font-bold text-sm hover:bg-cyan-300 transition-colors glow-cyan disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Process {totalQuads} table{totalQuads === 1 ? "" : "s"} →
-            </button>
+            <div className="flex items-center gap-3">
+              {parsing && (
+                <span className="text-xs font-mono text-[#00d4ff]">
+                  Parsing… {Math.round(parseProgress * 100)}%
+                </span>
+              )}
+              <button
+                onClick={parseCurrentPage}
+                disabled={
+                  parsing ||
+                  ps.parsed ||
+                  ps.skipped ||
+                  ps.rects.length === 0
+                }
+                className="px-6 py-2.5 rounded-xl bg-[#00d4ff] text-[#0a0b0f] font-bold text-sm hover:bg-cyan-300 transition-colors glow-cyan disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {ps.parsed
+                  ? "✓ Parsed"
+                  : `Parse this page (${ps.rects.length})`}
+              </button>
+            </div>
           </div>
+
           {errorMsg && <p className="text-red-400 text-sm">{errorMsg}</p>}
-        </div>
-      )}
 
-      {step === "processing" && (
-        <div className="glass rounded-2xl p-10 text-center max-w-xl mx-auto">
-          <div className="inline-flex items-center gap-3 text-[#00d4ff] mb-4">
-            <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-            </svg>
-            <span className="font-mono text-sm">
-              {job ? "Recognizing tables…" : "Detecting tables…"}
-            </span>
-          </div>
-          <div className="w-full h-2 rounded-full bg-white/5 overflow-hidden">
-            <div
-              className="h-full bg-[#00d4ff] transition-all"
-              style={{ width: `${Math.max(5, progress * 100)}%` }}
-            />
-          </div>
-          <p className="text-[#6b7280] text-xs mt-3 font-mono">
-            {Math.round(progress * 100)}%
-            {status?.tables.length ? ` · ${status.tables.length} table(s) so far` : ""}
-          </p>
-        </div>
-      )}
-
-      {step === "results" && job && status && (
-        <div className="space-y-5">
-          <TableTabs jobId={job.job_id} tables={status.tables} />
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <button onClick={reset} className="text-xs text-[#6b7280] hover:text-white">
-              ← Start over
-            </button>
-            <a
-              href={jobZipUrl(job.job_id)}
-              className="px-6 py-2.5 rounded-xl bg-[#00d4ff] text-[#0a0b0f] font-bold text-sm hover:bg-cyan-300 transition-colors glow-cyan"
-            >
-              Download all (ZIP)
-            </a>
-          </div>
+          {/* incremental results */}
+          {tables.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <h2 className="text-lg font-bold text-white">
+                  Results
+                  <span className="ml-2 text-xs font-mono text-[#6b7280]">
+                    {tables.length} table{tables.length === 1 ? "" : "s"} parsed
+                  </span>
+                </h2>
+                <a
+                  href={jobZipUrl(job.job_id)}
+                  className="px-4 py-2 rounded-xl bg-[#00d4ff] text-[#0a0b0f] font-bold text-sm hover:bg-cyan-300 transition-colors glow-cyan"
+                >
+                  Download all (ZIP)
+                </a>
+              </div>
+              <TableTabs jobId={job.job_id} tables={tables} forceCarousel />
+            </div>
+          )}
         </div>
       )}
 
@@ -396,20 +418,31 @@ export default function DemoPage() {
   );
 }
 
-function Stepper({ step }: { step: Step }) {
-  const labels: { id: Step; label: string }[] = [
+function PageStatusBadge({ state }: { state: PerPageState }) {
+  if (state.parsed) {
+    return (
+      <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-xs font-mono">
+        ✓ Parsed
+      </span>
+    );
+  }
+  if (state.skipped) {
+    return (
+      <span className="px-2 py-0.5 rounded-full bg-red-500/15 text-red-300 border border-red-500/30 text-xs font-mono">
+        ✗ Skipped
+      </span>
+    );
+  }
+  return null;
+}
+
+function Stepper({ step, hasResults }: { step: Step; hasResults: boolean }) {
+  const labels = [
     { id: "upload", label: "Upload" },
-    { id: "review", label: "Review" },
+    { id: "review", label: "Review & Parse" },
     { id: "results", label: "Results" },
   ];
-  const stepRank: Record<Step, number> = {
-    upload: 0,
-    review: 1,
-    processing: 1,
-    results: 2,
-    error: 0,
-  };
-  const active = stepRank[step];
+  const active = step === "upload" ? 0 : hasResults ? 2 : 1;
   return (
     <div className="flex items-center justify-center gap-3 mt-3 text-xs font-mono">
       {labels.map((l, i) => (

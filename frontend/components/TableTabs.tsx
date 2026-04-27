@@ -7,11 +7,12 @@ import { tableImageUrl, type CellData, type TableData } from "@/lib/api";
 interface Props {
   jobId: string;
   tables: TableData[];
+  forceCarousel?: boolean;
 }
 
 const TAB_LIMIT = 5;
 
-export default function TableTabs({ jobId, tables }: Props) {
+export default function TableTabs({ jobId, tables, forceCarousel = false }: Props) {
   const [active, setActive] = useState(0);
   const [showConfidence, setShowConfidence] = useState(true);
   const [edits, setEdits] = useState<Record<number, CellData[]>>({});
@@ -35,7 +36,7 @@ export default function TableTabs({ jobId, tables }: Props) {
     );
   }
 
-  const useCarousel = tables.length > TAB_LIMIT;
+  const useCarousel = forceCarousel || tables.length > TAB_LIMIT;
   const t = tables[active];
   const editedCells = edits[t.index] ?? t.cells ?? [];
 
