@@ -23,7 +23,7 @@ export interface PerPageState {
 
 interface DemoState {
   step: Step;
-  file: File | null;
+  files: File[];
   job: JobInit | null;
   pageStates: PerPageState[];
   currentPage: number;
@@ -33,7 +33,7 @@ interface DemoState {
 
 interface DemoContextValue extends DemoState {
   setStep: (s: Step) => void;
-  setFile: (f: File | null) => void;
+  setFiles: React.Dispatch<React.SetStateAction<File[]>>;
   setJob: (j: JobInit | null) => void;
   setPageStates: React.Dispatch<React.SetStateAction<PerPageState[]>>;
   setCurrentPage: React.Dispatch<React.SetStateAction<number>>;
@@ -47,7 +47,7 @@ const DemoContext = createContext<DemoContextValue | null>(null);
 
 export function DemoProvider({ children }: { children: ReactNode }) {
   const [step, setStep] = useState<Step>("upload");
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [job, setJob] = useState<JobInit | null>(null);
   const [pageStates, setPageStates] = useState<PerPageState[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
@@ -59,7 +59,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     if (pollRef.current) clearInterval(pollRef.current);
     pollRef.current = null;
     setStep("upload");
-    setFile(null);
+    setFiles([]);
     setJob(null);
     setPageStates([]);
     setCurrentPage(0);
@@ -70,14 +70,14 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const value = useMemo<DemoContextValue>(
     () => ({
       step,
-      file,
+      files,
       job,
       pageStates,
       currentPage,
       tables,
       errorMsg,
       setStep,
-      setFile,
+      setFiles,
       setJob,
       setPageStates,
       setCurrentPage,
@@ -86,7 +86,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       reset,
       pollRef,
     }),
-    [step, file, job, pageStates, currentPage, tables, errorMsg, reset],
+    [step, files, job, pageStates, currentPage, tables, errorMsg, reset],
   );
 
   return <DemoContext.Provider value={value}>{children}</DemoContext.Provider>;

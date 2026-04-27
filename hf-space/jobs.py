@@ -142,13 +142,16 @@ def get_job(job_id: str) -> Job | None:
 # ---------------------------------------------------------------------------
 # Rasterization
 # ---------------------------------------------------------------------------
-def _rasterize_pdf(pdf_bytes: bytes, out_dir: Path) -> list[Path]:
+IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tif", ".tiff"}
+
+
+def _rasterize_pdf(pdf_bytes: bytes, out_dir: Path, base: int) -> list[Path]:
     pdf = pdfium.PdfDocument(pdf_bytes)
     scale = PDF_DPI / 72.0
     paths: list[Path] = []
     for i, page in enumerate(pdf, start=1):
         pil = page.render(scale=scale).to_pil().convert("RGB")
-        path = out_dir / f"page_{i:03d}.png"
+        path = out_dir / f"page_{base + i:04d}.png"
         pil.save(path, format="PNG")
         paths.append(path)
         page.close()
@@ -156,26 +159,62 @@ def _rasterize_pdf(pdf_bytes: bytes, out_dir: Path) -> list[Path]:
     return paths
 
 
-def _save_image(image_bytes: bytes, out_dir: Path) -> list[Path]:
+def _save_image(image_bytes: bytes, out_dir: Path, base: int) -> list[Path]:
     pil = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-    path = out_dir / "page_001.png"
+    path = out_dir / f"page_{base + 1:04d}.png"
     pil.save(path, format="PNG")
     return [path]
 
 
+def _unpack_zip(zip_bytes: bytes, out_dir: Path, base: int) -> list[Path]:
+    paths: list[Path] = []
+    with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
+        members = sorted(
+            (m for m in zf.namelist() if not m.endswith("/")),
+            key=lambda s: s.lower(),
+        )
+        for name in members:
+            ext = Path(name).suffix.lower()
+            if ext not in IMAGE_EXTS:
+                continue
+            data = zf.read(name)
+            try:
+                pil = Image.open(io.BytesIO(data)).convert("RGB")
+            except Exception:
+                continue
+            path = out_dir / f"page_{base + len(paths) + 1:04d}.png"
+            pil.save(path, format="PNG")
+            paths.append(path)
+    return paths
+
+
+def _ingest_one(
+    data: bytes, content_type: str, out_dir: Path, base: int
+) -> list[Path]:
+    if content_type == "application/pdf":
+        return _rasterize_pdf(data, out_dir, base)
+    if content_type in {"application/zip", "application/x-zip-compressed"}:
+        return _unpack_zip(data, out_dir, base)
+    return _save_image(data, out_dir, base)
+
+
 # ---------------------------------------------------------------------------
-# create_job: rasterize + run YOLO detection per page
+# create_job: rasterize + accumulate pages from one or more uploads
 # ---------------------------------------------------------------------------
-def create_job(file_bytes: bytes, content_type: str) -> Job:
+def create_job(uploads: list[tuple[bytes, str]]) -> Job:
+    """`uploads` = list of (bytes, content_type) — concatenates pages in order."""
     cleanup_expired()
     job_id = uuid.uuid4().hex[:12]
     out_dir = _job_dir(job_id)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    if content_type == "application/pdf":
-        page_paths = _rasterize_pdf(file_bytes, out_dir)
-    else:
-        page_paths = _save_image(file_bytes, out_dir)
+    page_paths: list[Path] = []
+    for data, content_type in uploads:
+        added = _ingest_one(data, content_type, out_dir, base=len(page_paths))
+        page_paths.extend(added)
+
+    if not page_paths:
+        raise ValueError("No usable pages or images in upload.")
 
     pages_meta: list[dict] = []
     for i, p in enumerate(page_paths):

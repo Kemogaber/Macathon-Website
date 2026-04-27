@@ -7,9 +7,13 @@ import jobs as jobsvc
 router = APIRouter()
 
 ALLOWED_TYPES = {
-    "image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf",
+    "image/jpeg", "image/png", "image/webp", "image/gif",
+    "image/bmp", "image/tiff",
+    "application/pdf",
+    "application/zip", "application/x-zip-compressed",
 }
-MAX_BYTES = 25 * 1024 * 1024  # 25 MB
+MAX_BYTES = 25 * 1024 * 1024  # 25 MB per file
+MAX_TOTAL = 100 * 1024 * 1024  # 100 MB combined
 
 
 class ConfirmedQuad(BaseModel):
@@ -26,19 +30,30 @@ class DetectRequest(BaseModel):
 
 
 @router.post("/jobs")
-async def create_job(file: UploadFile = File(...)):
-    if file.content_type not in ALLOWED_TYPES:
-        raise HTTPException(415, f"Unsupported file type: {file.content_type}")
-    data = await file.read()
-    if len(data) > MAX_BYTES:
-        raise HTTPException(413, "File too large. Max 25 MB.")
-    if not data:
-        raise HTTPException(400, "Empty file.")
+async def create_job(files: list[UploadFile] = File(...)):
+    if not files:
+        raise HTTPException(400, "No files uploaded.")
+    uploads: list[tuple[bytes, str]] = []
+    total = 0
+    for f in files:
+        if f.content_type not in ALLOWED_TYPES:
+            raise HTTPException(415, f"Unsupported file type: {f.content_type}")
+        data = await f.read()
+        if len(data) > MAX_BYTES:
+            raise HTTPException(413, f"{f.filename}: file too large (max 25 MB).")
+        if not data:
+            raise HTTPException(400, f"{f.filename}: empty file.")
+        total += len(data)
+        if total > MAX_TOTAL:
+            raise HTTPException(413, "Combined upload too large (max 100 MB).")
+        uploads.append((data, f.content_type))
 
     try:
-        job = jobsvc.create_job(data, file.content_type)
+        job = jobsvc.create_job(uploads)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
     except Exception as e:
-        raise HTTPException(500, f"Failed to process file: {e}")
+        raise HTTPException(500, f"Failed to process files: {e}")
 
     return {
         "job_id": job.id,

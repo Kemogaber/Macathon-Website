@@ -23,14 +23,14 @@ import { useEffect, useState } from "react";
 export default function DemoPage() {
   const {
     step,
-    file,
+    files,
     job,
     pageStates,
     currentPage,
     tables,
     errorMsg,
     setStep,
-    setFile,
+    setFiles,
     setJob,
     setPageStates,
     setCurrentPage,
@@ -47,11 +47,11 @@ export default function DemoPage() {
 
   // ---------- step 1 → 2 : upload only (no auto-detect) ----------
   async function handleUpload() {
-    if (!file) return;
+    if (!files.length) return;
     setErrorMsg("");
     setBusy("upload");
     try {
-      const j = await createJob(file);
+      const j = await createJob(files);
       setJob(j);
       setPageStates(
         j.pages.map(() => ({
@@ -229,6 +229,33 @@ export default function DemoPage() {
     [],
   );
 
+  // Arrow keys navigate pages while in review
+  useEffect(() => {
+    if (step !== "review" || !job) return;
+    function isTyping() {
+      const el = document.activeElement as HTMLElement | null;
+      if (!el) return false;
+      const tag = el.tagName;
+      return (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        el.isContentEditable
+      );
+    }
+    function onKey(e: KeyboardEvent) {
+      if (isTyping()) return;
+      if (!job) return;
+      if (e.key === "ArrowLeft") {
+        setCurrentPage((i: number) => Math.max(0, i - 1));
+      } else if (e.key === "ArrowRight") {
+        setCurrentPage((i: number) => Math.min(job.pages.length - 1, i + 1));
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [step, job, setCurrentPage]);
+
   const ps = pageStates[currentPage];
   const detectedCount = pageStates.filter((p) => p.detected).length;
   const recognizedCount = pageStates.filter((p) => p.recognized).length;
@@ -248,18 +275,18 @@ export default function DemoPage() {
 
       {step === "upload" && (
         <div className="glass rounded-2xl p-7 gradient-border max-w-3xl mx-auto">
-          <UploadZone onFileSelect={setFile} />
-          {file && (
+          <UploadZone files={files} onChange={setFiles} disabled={busy !== null} />
+          {files.length > 0 && (
             <div className="mt-5 flex items-center justify-between gap-4 flex-wrap">
-              <p className="text-sm text-muted-2 font-mono truncate max-w-xs">
-                {file.name} · {(file.size / 1024).toFixed(1)} KB
+              <p className="text-sm text-muted-2 font-mono">
+                {files.length} file{files.length === 1 ? "" : "s"} ready
               </p>
               <button
                 onClick={handleUpload}
                 disabled={busy !== null}
                 className="px-6 py-2.5 rounded-xl bg-cyan text-background font-bold text-sm hover:bg-cyan-300 transition-colors glow-cyan disabled:opacity-50"
               >
-                {busy === "upload" ? "Uploading…" : "Upload →"}
+                {busy === "upload" ? "Uploading…" : `Upload ${files.length} →`}
               </button>
             </div>
           )}

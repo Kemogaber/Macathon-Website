@@ -86,9 +86,9 @@ export interface ConfirmedQuad {
   score?: number;
 }
 
-export async function createJob(file: File): Promise<JobInit> {
+export async function createJob(files: File[]): Promise<JobInit> {
   const form = new FormData();
-  form.append("file", file);
+  for (const f of files) form.append("files", f);
   const res = await fetch(`${API_URL}/api/jobs`, { method: "POST", body: form });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Unknown error" }));
@@ -145,9 +145,26 @@ export async function startRecognize(
 }
 
 export async function getJobStatus(jobId: string): Promise<JobStatus> {
-  const res = await fetch(`${API_URL}/api/jobs/${jobId}/status`);
-  if (!res.ok) throw new Error(`Status check failed (${res.status})`);
-  return res.json();
+  // Retry transient 5xx (HF Space sometimes blips during heavy work).
+  let lastErr: unknown = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(`${API_URL}/api/jobs/${jobId}/status`);
+      if (res.ok) return res.json();
+      if (res.status >= 500 && attempt < 2) {
+        await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
+        continue;
+      }
+      throw new Error(`Status check failed (${res.status})`);
+    } catch (e) {
+      lastErr = e;
+      if (attempt < 2) {
+        await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
+        continue;
+      }
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error("Status check failed");
 }
 
 // ---------- metrics ----------

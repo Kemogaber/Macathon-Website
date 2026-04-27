@@ -96,6 +96,8 @@ function rotationHandlePos(r: RectQuad, scale: number) {
   return [r.cx + lx * c - ly * s, r.cy + lx * s + ly * c] as [number, number];
 }
 
+type Tool = "pan" | "zoom";
+
 export default function QuadEditor({
   imageUrl,
   imageWidth,
@@ -111,6 +113,39 @@ export default function QuadEditor({
   const [zoom, setZoom] = useState<number | "fit">("fit");
   const [fitScale, setFitScale] = useState(1);
   const [drag, setDrag] = useState<DragMode | null>(null);
+  const [tool, setTool] = useState<Tool>("pan");
+
+  // Zoom toward a client-coordinate point, keeping it under the cursor.
+  const zoomAt = useCallback(
+    (clientX: number, clientY: number, dir: 1 | -1) => {
+      const frame = frameRef.current;
+      const img = imgRef.current;
+      if (!frame || !img) return;
+      const current = zoom === "fit" ? fitScale : zoom;
+      let idx = ZOOM_STEPS.findIndex((z) => Math.abs(z - current) < 0.001);
+      if (idx === -1) {
+        idx = ZOOM_STEPS.findIndex((z) => z >= current);
+        if (idx === -1) idx = ZOOM_STEPS.length - 1;
+      }
+      const nextIdx = Math.max(0, Math.min(ZOOM_STEPS.length - 1, idx + dir));
+      if (nextIdx === idx) return;
+      const newScale = ZOOM_STEPS[nextIdx];
+
+      const imgRect = img.getBoundingClientRect();
+      const frameRect = frame.getBoundingClientRect();
+      const px = (clientX - imgRect.left) / current;
+      const py = (clientY - imgRect.top) / current;
+
+      setZoom(newScale);
+      requestAnimationFrame(() => {
+        const f = frameRef.current;
+        if (!f) return;
+        f.scrollLeft = px * newScale - (clientX - frameRect.left);
+        f.scrollTop = py * newScale - (clientY - frameRect.top);
+      });
+    },
+    [zoom, fitScale],
+  );
 
   // Compute fit scale on mount + on resize.
   useEffect(() => {
@@ -217,53 +252,66 @@ export default function QuadEditor({
     };
   }, [drag, onPointerMove, onPointerUp]);
 
-  function bumpZoom(delta: number) {
-    const current = zoom === "fit" ? fitScale : zoom;
-    // find nearest step then move by delta
-    let idx = ZOOM_STEPS.findIndex((z) => z >= current);
-    if (idx === -1) idx = ZOOM_STEPS.length - 1;
-    idx = Math.max(0, Math.min(ZOOM_STEPS.length - 1, idx + delta));
-    setZoom(ZOOM_STEPS[idx]);
-  }
+  const imgCursor =
+    drag?.kind === "pan"
+      ? "grabbing"
+      : tool === "pan"
+        ? "grab"
+        : "zoom-in";
 
   return (
     <div className="w-full">
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
         <div className="flex items-center gap-1">
           <button
             type="button"
-            onClick={() => bumpZoom(-1)}
-            className="w-8 h-8 rounded-lg border border-border hover:border-cyan/40 text-sm"
-            title="Zoom out"
+            onClick={() => setTool("pan")}
+            className={`w-9 h-9 rounded-lg border flex items-center justify-center transition-colors ${
+              tool === "pan"
+                ? "border-cyan bg-[rgba(0,212,255,0.12)] text-cyan"
+                : "border-border hover:border-cyan/40 text-muted-2"
+            }`}
+            title="Pan tool — click and drag the image to move"
           >
-            −
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2 L12 22 M2 12 L22 12 M12 2 L9 5 M12 2 L15 5 M12 22 L9 19 M12 22 L15 19 M2 12 L5 9 M2 12 L5 15 M22 12 L19 9 M22 12 L19 15" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={() => setTool("zoom")}
+            className={`w-9 h-9 rounded-lg border flex items-center justify-center transition-colors ${
+              tool === "zoom"
+                ? "border-cyan bg-[rgba(0,212,255,0.12)] text-cyan"
+                : "border-border hover:border-cyan/40 text-muted-2"
+            }`}
+            title="Zoom tool — click to zoom in, alt-click to zoom out"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="7" />
+              <path d="M21 21 L16 16 M8 11 L14 11 M11 8 L11 14" />
+            </svg>
           </button>
           <button
             type="button"
             onClick={() => setZoom("fit")}
-            className={`px-3 h-8 rounded-lg border text-xs font-mono ${
+            className={`px-3 h-9 rounded-lg border text-xs font-mono ${
               zoom === "fit"
                 ? "border-cyan bg-[rgba(0,212,255,0.12)] text-cyan"
-                : "border-border hover:border-cyan/40"
+                : "border-border hover:border-cyan/40 text-muted-2"
             }`}
             title="Fit to view"
           >
             Fit
-          </button>
-          <button
-            type="button"
-            onClick={() => bumpZoom(1)}
-            className="w-8 h-8 rounded-lg border border-border hover:border-cyan/40 text-sm"
-            title="Zoom in"
-          >
-            +
           </button>
           <span className="text-xs text-muted font-mono ml-2">
             {Math.round(scale * 100)}%
           </span>
         </div>
         <span className="text-xs text-muted font-mono">
-          drag edges to slide · top knob to rotate
+          {tool === "pan"
+            ? "Pan: click + drag · drag edges to slide · top knob to rotate"
+            : "Zoom: click to zoom in · alt-click to zoom out"}
         </span>
       </div>
 
@@ -274,12 +322,20 @@ export default function QuadEditor({
       >
         <div
           className="relative inline-block"
-          style={{
-            width: renderedW,
-            height: renderedH,
-            cursor: drag?.kind === "pan" ? "grabbing" : "grab",
+          style={{ width: renderedW, height: renderedH, cursor: imgCursor }}
+          onClick={(e) => {
+            if (tool !== "zoom") return;
+            if ((e.target as Element).tagName !== "IMG") return;
+            zoomAt(e.clientX, e.clientY, e.altKey ? -1 : 1);
+          }}
+          onContextMenu={(e) => {
+            if (tool !== "zoom") return;
+            if ((e.target as Element).tagName !== "IMG") return;
+            e.preventDefault();
+            zoomAt(e.clientX, e.clientY, -1);
           }}
           onPointerDown={(e) => {
+            if (tool !== "pan") return;
             if ((e.target as Element).tagName !== "IMG") return;
             const frame = frameRef.current;
             if (!frame) return;
