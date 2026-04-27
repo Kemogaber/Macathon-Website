@@ -1,6 +1,7 @@
 "use client";
 
 import BackendStatusPill from "@/components/BackendStatusPill";
+import CameraCapture from "@/components/CameraCapture";
 import ChatWidget from "@/components/ChatWidget";
 import UploadZone from "@/components/UploadZone";
 import QuadEditor, {
@@ -818,6 +819,7 @@ function AddMoreFilesButton({
   disabled: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
   return (
     <>
       <input
@@ -840,6 +842,22 @@ function AddMoreFilesButton({
       >
         + Add files
       </button>
+      <button
+        onClick={() => setCameraOpen(true)}
+        disabled={disabled}
+        title="Capture with camera"
+        className="px-2.5 py-1 rounded-lg border border-cyan/40 bg-cyan/10 hover:bg-cyan/20 text-cyan text-xs font-mono disabled:opacity-30"
+      >
+        📷 Camera
+      </button>
+      <CameraCapture
+        open={cameraOpen}
+        onClose={() => setCameraOpen(false)}
+        onCapture={(captured) => {
+          setCameraOpen(false);
+          if (captured.length) onAdd(captured);
+        }}
+      />
     </>
   );
 }

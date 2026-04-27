@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import CameraCapture from "@/components/CameraCapture";
 
 interface Props {
   files: File[];
@@ -56,6 +57,7 @@ function fmtSize(bytes: number): string {
 export default function UploadZone({ files, onChange, disabled }: Props) {
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
 
   const addFiles = useCallback(
     (incoming: FileList | File[]) => {
@@ -142,6 +144,30 @@ export default function UploadZone({ files, onChange, disabled }: Props) {
           className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
         />
       </label>
+
+      <div className="flex items-center justify-center gap-2 -mt-1">
+        <span className="text-muted-2 text-xs">or</span>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setCameraOpen(true);
+          }}
+          disabled={disabled}
+          className="px-3 py-1.5 rounded-lg border border-cyan/40 bg-cyan/10 hover:bg-cyan/20 text-cyan text-xs font-bold disabled:opacity-40"
+        >
+          📷 Use camera
+        </button>
+      </div>
+
+      <CameraCapture
+        open={cameraOpen}
+        onClose={() => setCameraOpen(false)}
+        onCapture={(captured) => {
+          setCameraOpen(false);
+          if (captured.length) addFiles(captured);
+        }}
+      />
 
       {files.length > 0 && (
         <ul className="space-y-2">
