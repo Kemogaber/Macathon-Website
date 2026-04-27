@@ -1,9 +1,3 @@
-import os
-# Disable oneDNN before paddle initializes: paddle's PIR-based executor crashes
-# with NotImplementedError on `pir::ArrayAttribute<DoubleAttribute>` in the
-# oneDNN instruction path. Must be set before any paddle import.
-os.environ.setdefault("FLAGS_use_mkldnn", "0")
-
 import io
 import json
 import time
@@ -144,7 +138,12 @@ class StructureRecognizer:
 class OCRModule:
     def __init__(self):
         from paddleocr import PaddleOCR
-        self.ocr = PaddleOCR(use_angle_cls=True, lang="en")
+        # enable_mkldnn=False routes PaddleX away from its default oneDNN
+        # run_mode, which crashes paddle 3.3's PIR executor with
+        # NotImplementedError on `pir::ArrayAttribute<DoubleAttribute>`.
+        # Setting FLAGS_use_mkldnn at the env level does NOT help — PaddleX
+        # ignores it and consults its own PaddlePredictorOption.run_mode.
+        self.ocr = PaddleOCR(use_angle_cls=True, lang="en", enable_mkldnn=False)
 
     def extract_text(self, cell_crop: Image.Image) -> str:
         """Run OCR on a single cell crop and return text."""
