@@ -109,7 +109,10 @@ export default function DemoPage() {
           if (!rp.detected) continue;
           if (next[rp.index].recognized) continue;
           next[rp.index].detected = true;
-          next[rp.index].rects = rp.detections.map((d) => quadToRect(d.quad));
+          next[rp.index].rects = rp.detections.map((d) => ({
+            ...quadToRect(d.quad),
+            score: d.score,
+          }));
           next[rp.index].activeRect = 0;
           touched++;
           totalBoxes += rp.detections.length;
@@ -187,7 +190,14 @@ export default function DemoPage() {
       const ps = pageStates[idx];
       if (!ps || ps.recognized || ps.rects.length === 0) continue;
       for (const r of ps.rects) {
-        out.push({ page_index: idx, quad: rectToQuad(r), score: 0 });
+        // score 0 ⇒ user-drawn (so the results panel can show "User-drawn"
+        // instead of a misleading "Detection: 0%"). YOLO-detected boxes
+        // pass through their original score.
+        out.push({
+          page_index: idx,
+          quad: rectToQuad(r),
+          score: r.score ?? 0,
+        });
       }
     }
     return out;

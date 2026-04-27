@@ -9,6 +9,7 @@ export interface RectQuad {
   w: number;
   h: number;
   rot: number; // radians, 0 = axis-aligned, CCW positive
+  score?: number; // YOLO detection score; absent for user-drawn boxes
 }
 
 interface Props {

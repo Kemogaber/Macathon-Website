@@ -105,7 +105,7 @@ export default function ImageResults({ jobId, tables }: Props) {
 
   const [activeImg, setActiveImg] = useState(0);
   const [activeTable, setActiveTable] = useState(0);
-  const [showConfidence, setShowConfidence] = useState(true);
+  const [showConfidence, setShowConfidence] = useState(false);
   const [edits, setEdits] = useState<Record<number, CellData[]>>({});
   const toast = useToast();
 
@@ -384,14 +384,31 @@ function CsvDownloadMenu({
 }
 
 function ConfidenceSummary({ table }: { table: TableData }) {
+  // detection_score === 0 (or null) ⇒ user-drawn box; show a tag instead of
+  // a misleading "Detection: 0%" badge.
+  const userDrawn = !table.detection_score;
   const items = [
-    { label: "Detection", value: table.detection_score },
     { label: "Structure", value: table.tsr_confidence },
     { label: "OCR", value: table.ocr_confidence },
   ].filter((i) => typeof i.value === "number" && i.value !== null);
-  if (!items.length) return null;
+
+  if (
+    !userDrawn &&
+    typeof table.detection_score === "number" &&
+    table.detection_score > 0
+  ) {
+    items.unshift({ label: "Detection", value: table.detection_score });
+  }
+
+  if (!userDrawn && items.length === 0) return null;
+
   return (
     <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
+      {userDrawn && (
+        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-purple-400/40 bg-purple-500/10 text-xs font-mono text-purple-200 light:text-purple-700">
+          User-drawn box
+        </span>
+      )}
       {items.map((it) => (
         <ConfidenceBadge
           key={it.label}
