@@ -1,8 +1,9 @@
 import asyncio
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
 import jobs as jobsvc
+from auth import require_api_key
 from models.schemas import ExtractionResponse
 from pipeline import get_pipeline
 
@@ -13,7 +14,11 @@ ALLOWED_TYPES = {
 }
 
 
-@router.post("/extract", response_model=ExtractionResponse)
+@router.post(
+    "/extract",
+    response_model=ExtractionResponse,
+    dependencies=[Depends(require_api_key)],
+)
 async def extract_table(file: UploadFile = File(...)):
     """One-shot extract — kept for back-compat. The 3-step flow lives in /api/jobs."""
     if file.content_type not in ALLOWED_TYPES:

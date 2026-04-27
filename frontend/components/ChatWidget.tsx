@@ -5,6 +5,7 @@ import { streamChat, type ChatMessage } from "@/lib/api";
 import {
   ChartBlock,
   PatchBlock,
+  RecommendBlock,
   parseSegments,
 } from "@/components/ChatBlocks";
 
@@ -375,6 +376,9 @@ function AssistantContent({ content }: { content: string }) {
         }
         if (s.kind === "chart") {
           return <ChartBlock key={i} spec={s.spec} />;
+        }
+        if (s.kind === "recommend") {
+          return <RecommendBlock key={i} spec={s.spec} />;
         }
         return <PatchBlock key={i} spec={s.spec} />;
       })}

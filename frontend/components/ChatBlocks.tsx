@@ -41,12 +41,25 @@ export interface PatchSpec {
   note?: string;
 }
 
+export interface RecommendSite {
+  name: string;
+  url: string;
+  why?: string;
+}
+
+export interface RecommendSpec {
+  genre: string;
+  reasoning?: string;
+  sites: RecommendSite[];
+}
+
 type Segment =
   | { kind: "text"; text: string }
   | { kind: "chart"; spec: ChartSpec | null; raw: string }
-  | { kind: "patch"; spec: PatchSpec | null; raw: string };
+  | { kind: "patch"; spec: PatchSpec | null; raw: string }
+  | { kind: "recommend"; spec: RecommendSpec | null; raw: string };
 
-const FENCE_RE = /```(chart|patch)\s*\n([\s\S]*?)```/g;
+const FENCE_RE = /```(chart|patch|recommend)\s*\n([\s\S]*?)```/g;
 
 export function parseSegments(content: string): Segment[] {
   const out: Segment[] = [];
@@ -54,9 +67,9 @@ export function parseSegments(content: string): Segment[] {
   for (const m of content.matchAll(FENCE_RE)) {
     const idx = m.index ?? 0;
     if (idx > last) out.push({ kind: "text", text: content.slice(last, idx) });
-    const tag = m[1] as "chart" | "patch";
+    const tag = m[1] as "chart" | "patch" | "recommend";
     const raw = m[2].trim();
-    let spec: ChartSpec | PatchSpec | null = null;
+    let spec: ChartSpec | PatchSpec | RecommendSpec | null = null;
     try {
       spec = JSON.parse(raw);
     } catch {
@@ -64,8 +77,10 @@ export function parseSegments(content: string): Segment[] {
     }
     if (tag === "chart") {
       out.push({ kind: "chart", spec: spec as ChartSpec | null, raw });
-    } else {
+    } else if (tag === "patch") {
       out.push({ kind: "patch", spec: spec as PatchSpec | null, raw });
+    } else {
+      out.push({ kind: "recommend", spec: spec as RecommendSpec | null, raw });
     }
     last = idx + m[0].length;
   }
@@ -273,6 +288,55 @@ export function PatchBlock({ spec }: { spec: PatchSpec | null }) {
       {state === "rejected" && (
         <div className="mt-2 text-muted-2 font-mono">Rejected</div>
       )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Recommend renderer — site cards based on inferred table genre.
+// ---------------------------------------------------------------------------
+
+function isHttpUrl(u: string): boolean {
+  try {
+    const parsed = new URL(u);
+    return parsed.protocol === "https:" || parsed.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
+export function RecommendBlock({ spec }: { spec: RecommendSpec | null }) {
+  if (!spec || !Array.isArray(spec.sites) || spec.sites.length === 0) {
+    return <BadBlock label="recommend" />;
+  }
+  const sites = spec.sites.filter((s) => s && s.name && isHttpUrl(s.url)).slice(0, 4);
+  if (sites.length === 0) return <BadBlock label="recommend" />;
+
+  return (
+    <div className="my-2 rounded-lg border border-cyan/30 bg-[rgba(0,212,255,0.06)] p-2.5 text-xs">
+      <div className="flex items-center gap-2 font-mono text-cyan">
+        <span>★ Recommended for</span>
+        <span className="px-1.5 py-0.5 rounded-md bg-cyan/15 border border-cyan/30 lowercase">
+          {spec.genre || "tables"}
+        </span>
+      </div>
+      {spec.reasoning && (
+        <div className="mt-1 text-muted-2 italic leading-snug">{spec.reasoning}</div>
+      )}
+      <div className="mt-2 flex flex-col gap-1.5">
+        {sites.map((s, i) => (
+          <a
+            key={i}
+            href={s.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block rounded-md border border-border bg-overlay/60 hover:border-cyan/40 hover:bg-overlay px-2 py-1.5 transition-colors"
+          >
+            <div className="font-bold text-text">{s.name} ↗</div>
+            {s.why && <div className="text-muted-2 mt-0.5">{s.why}</div>}
+          </a>
+        ))}
+      </div>
     </div>
   );
 }

@@ -10,6 +10,7 @@ backend/**/*.pyc
 backend/.venv/
 backend/venv/
 backend/.env
+backend/api_keys.json
 
 # HF Space
 hf-space/**/__pycache__/

@@ -56,6 +56,50 @@ Use this when you want one-call extraction with no review step.
 | `GET` | `/api/jobs/{id}/download` | Full zip (HTML + CSVs + images) |
 | `POST` | `/api/jobs/{id}/cancel` | Request cancellation |
 
+### API keys (optional)
+
+The extraction and job endpoints can be gated by API keys so you can
+expose the service to third parties. Auth is **off by default** so the
+local frontend keeps working without configuration.
+
+Set two env vars to turn it on:
+
+```bash
+export REQUIRE_API_KEY=1                       # gate /api/extract + /api/jobs/*
+export ADMIN_API_KEY=$(openssl rand -hex 32)   # used to manage keys
+# optional: export API_KEYS_FILE=/var/lib/tablex/api_keys.json
+```
+
+**Manage keys** (admin auth via `Authorization: Bearer $ADMIN_API_KEY`
+or `X-Admin-Key`):
+
+```bash
+# Create — returns the plaintext key ONCE; save it
+curl -X POST http://localhost:8000/api/admin/keys \
+  -H "Authorization: Bearer $ADMIN_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Acme Corp"}'
+
+# List
+curl http://localhost:8000/api/admin/keys -H "Authorization: Bearer $ADMIN_API_KEY"
+
+# Revoke
+curl -X DELETE http://localhost:8000/api/admin/keys/<key_id> \
+  -H "Authorization: Bearer $ADMIN_API_KEY"
+```
+
+**Use a key** (consumer auth via `Authorization: Bearer <key>` or
+`X-API-Key`):
+
+```bash
+curl -X POST http://localhost:8000/api/extract \
+  -H "Authorization: Bearer tx_xxxxxxxx..." \
+  -F "file=@table.png"
+```
+
+Keys are stored as sha256 hashes in `api_keys.json`; plaintext is shown
+only at creation time and cannot be recovered.
+
 ### Limits
 
 - Max 25 MB per file

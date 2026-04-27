@@ -1,12 +1,13 @@
 import asyncio
 
-from fastapi import APIRouter, BackgroundTasks, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 
 import jobs as jobsvc
+from auth import require_api_key
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_api_key)])
 
 ALLOWED_TYPES = {
     "image/jpeg", "image/png", "image/webp", "image/gif",

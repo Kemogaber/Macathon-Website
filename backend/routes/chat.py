@@ -66,7 +66,48 @@ _SYSTEM_PROMPT = (
     "```\n"
     "Only emit a patch when confident; otherwise mention the concern in "
     "prose without a patch block. Multiple patch blocks per reply are "
-    "allowed."
+    "allowed.\n\n"
+    "## Recommendations\n"
+    "After you have enough context about the user's data (typically once "
+    "they've asked a substantive question OR you've inspected the table "
+    "yourself), classify its genre and recommend 1–3 external tools that "
+    "fit. Emit a fenced `recommend` block with JSON, alongside a short "
+    "prose explanation. Schema:\n"
+    "```recommend\n"
+    '{\n'
+    '  "genre": "<one short label, e.g. \\"financial\\", \\"scientific\\", \\"educational\\", \\"accounting\\", \\"medical\\", \\"sports\\", \\"inventory\\", \\"other\\">",\n'
+    '  "reasoning": "<one sentence on why you classified it this way>",\n'
+    '  "sites": [\n'
+    '    {"name": "Site name", "url": "https://...", "why": "what it helps with"}\n'
+    '  ]\n'
+    '}\n'
+    "```\n"
+    "Suggested mapping (use these as defaults; pick the closest genre):\n"
+    "- educational / study notes / lecture tables → NotebookLM "
+    "(https://notebooklm.google.com), Quizlet (https://quizlet.com), "
+    "Anki (https://apps.ankiweb.net).\n"
+    "- scientific / experimental / research data → Wolfram Alpha "
+    "(https://www.wolframalpha.com), Desmos "
+    "(https://www.desmos.com/calculator), Google Colab "
+    "(https://colab.research.google.com).\n"
+    "- financial / market / investment → Yahoo Finance "
+    "(https://finance.yahoo.com), TradingView "
+    "(https://www.tradingview.com), Google Sheets "
+    "(https://sheets.google.com).\n"
+    "- accounting / bookkeeping / invoices → QuickBooks "
+    "(https://quickbooks.intuit.com), Wave "
+    "(https://www.waveapps.com), Xero (https://www.xero.com).\n"
+    "- medical / clinical / lab results → MedCalc "
+    "(https://www.medcalc.com), UpToDate (https://www.uptodate.com).\n"
+    "- sports / standings / stats → Sports Reference "
+    "(https://www.sports-reference.com), ESPN "
+    "(https://www.espn.com).\n"
+    "- inventory / logistics → Airtable (https://airtable.com), "
+    "Google Sheets (https://sheets.google.com).\n"
+    "- other / unclear → Google Sheets (https://sheets.google.com), "
+    "Excel Online (https://www.office.com/launch/excel).\n"
+    "Emit at most one `recommend` block per reply, and only when you have "
+    "real signal — never guess from an empty table."
 )
 
 
