@@ -58,56 +58,53 @@ export default function ChatWidget({
   const showNudge = !!nudge && !open && !nudgeDismissed;
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
-  const panelRef = useRef<HTMLDivElement | null>(null);
-  // null = default bottom-right anchor. Set on first drag.
-  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
-  const [size, setSize] = useState<{ w: number; h: number }>({ w: 380, h: 560 });
 
-  function startDrag(e: React.MouseEvent) {
-    // Ignore clicks on buttons inside the header.
-    if ((e.target as HTMLElement).closest("button")) return;
+  // Icon position is the anchor for everything — panel hangs off it. Tracked
+  // as `right`/`bottom` offsets from the viewport so resizing the window
+  // keeps the icon visible.
+  const ICON_SIZE = 56;
+  const [iconPos, setIconPos] = useState<{ right: number; bottom: number }>({
+    right: 24,
+    bottom: 24,
+  });
+
+  // Drag-vs-click: pointerdown starts a tracker; if the pointer moves past
+  // ~5px we treat it as a drag and suppress the toggle on pointerup.
+  function onIconPointerDown(e: React.PointerEvent<HTMLButtonElement>) {
+    if (e.button !== 0 && e.pointerType === "mouse") return;
     e.preventDefault();
-    const rect = panelRef.current?.getBoundingClientRect();
     const start = {
-      left: pos?.left ?? rect?.left ?? 0,
-      top: pos?.top ?? rect?.top ?? 0,
-      mx: e.clientX,
-      my: e.clientY,
+      x: e.clientX,
+      y: e.clientY,
+      right: iconPos.right,
+      bottom: iconPos.bottom,
     };
-    function onMove(ev: MouseEvent) {
-      const left = Math.max(
-        0,
-        Math.min(window.innerWidth - size.w, start.left + ev.clientX - start.mx),
+    let dragged = false;
+    function onMove(ev: PointerEvent) {
+      const dx = ev.clientX - start.x;
+      const dy = ev.clientY - start.y;
+      if (!dragged && Math.hypot(dx, dy) < 5) return;
+      dragged = true;
+      const right = Math.max(
+        8,
+        Math.min(window.innerWidth - ICON_SIZE - 8, start.right - dx),
       );
-      const top = Math.max(
-        0,
-        Math.min(window.innerHeight - 40, start.top + ev.clientY - start.my),
+      const bottom = Math.max(
+        8,
+        Math.min(window.innerHeight - ICON_SIZE - 8, start.bottom - dy),
       );
-      setPos({ left, top });
+      setIconPos({ right, bottom });
     }
     function onUp() {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      if (!dragged) {
+        setNudgeDismissed(true);
+        setOpen((o) => !o);
+      }
     }
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-  }
-
-  function startResize(e: React.MouseEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    const start = { w: size.w, h: size.h, mx: e.clientX, my: e.clientY };
-    function onMove(ev: MouseEvent) {
-      const w = Math.max(300, Math.min(window.innerWidth - 24, start.w + ev.clientX - start.mx));
-      const h = Math.max(360, Math.min(window.innerHeight - 24, start.h + ev.clientY - start.my));
-      setSize({ w, h });
-    }
-    function onUp() {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    }
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
   }
 
   // Load persisted messages once on mount.
@@ -204,53 +201,41 @@ export default function ChatWidget({
 
   return (
     <>
-      {!open && (
-        <>
-          {showNudge && (
-            <div className="fixed bottom-24 right-6 z-40 max-w-[260px] rounded-xl bg-background border border-cyan/40 shadow-2xl p-3 animate-in fade-in slide-in-from-bottom-2">
-              <div className="flex items-start gap-2">
-                <div className="flex-1 text-xs text-text leading-snug">{nudge}</div>
-                <button
-                  onClick={() => setNudgeDismissed(true)}
-                  aria-label="Dismiss"
-                  className="text-muted-2 hover:text-text leading-none px-1"
-                >
-                  ×
-                </button>
-              </div>
-              <div
-                aria-hidden
-                className="absolute -bottom-1.5 right-6 w-3 h-3 rotate-45 bg-background border-r border-b border-cyan/40"
-              />
-            </div>
-          )}
-          <button
-            onClick={() => {
-              setNudgeDismissed(true);
-              setOpen(true);
-            }}
-            className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-cyan text-black shadow-xl hover:scale-105 transition-transform flex items-center justify-center text-xl font-bold"
-            aria-label="Open assistant"
-          >
-            💬
-          </button>
-        </>
+      {showNudge && (
+        <div
+          style={{
+            right: iconPos.right,
+            bottom: iconPos.bottom + ICON_SIZE + 12,
+          }}
+          className="fixed z-40 max-w-[260px] rounded-xl bg-background border border-cyan/40 shadow-2xl p-3 animate-in fade-in slide-in-from-bottom-2"
+        >
+          <div className="flex items-start gap-2">
+            <div className="flex-1 text-xs text-text leading-snug">{nudge}</div>
+            <button
+              onClick={() => setNudgeDismissed(true)}
+              aria-label="Dismiss"
+              className="text-muted-2 hover:text-text leading-none px-1"
+            >
+              ×
+            </button>
+          </div>
+        </div>
       )}
 
       {open && (
         <div
-          ref={panelRef}
-          style={
-            pos
-              ? { left: pos.left, top: pos.top, width: size.w, height: size.h }
-              : { right: 24, bottom: 24, width: size.w, height: size.h }
-          }
-          className="fixed z-50 bg-background rounded-2xl border border-border shadow-2xl flex flex-col overflow-hidden"
+          style={{
+            // Anchor panel's bottom-right to icon's top-left (with a small gap).
+            right: iconPos.right + ICON_SIZE + 8,
+            bottom: iconPos.bottom + ICON_SIZE + 8,
+            width: 380,
+            height: 560,
+            maxWidth: `calc(100vw - ${iconPos.right + ICON_SIZE + 24}px)`,
+            maxHeight: `calc(100vh - ${iconPos.bottom + ICON_SIZE + 24}px)`,
+          }}
+          className="fixed z-40 bg-background rounded-2xl border border-border shadow-2xl flex flex-col overflow-hidden"
         >
-          <div
-            onMouseDown={startDrag}
-            className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface-3 cursor-move select-none"
-          >
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface-3">
             <div className="min-w-0">
               <div className="text-sm font-bold text-text">Assistant</div>
               {jobId && attachedTableCount > 0 && (
@@ -338,26 +323,19 @@ export default function ChatWidget({
                 </button>
               )}
             </div>
-            <button
-              onClick={() => setOpen(false)}
-              className="w-full py-1.5 rounded-md border border-border text-muted-2 hover:text-text hover:bg-overlay text-xs font-mono"
-              aria-label="Close chat"
-            >
-              ▾ Close
-            </button>
           </div>
-          <div
-            onMouseDown={startResize}
-            title="Drag to resize"
-            aria-label="Resize chat"
-            className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize"
-            style={{
-              background:
-                "linear-gradient(135deg, transparent 50%, rgba(0,212,255,0.6) 50%)",
-            }}
-          />
         </div>
       )}
+
+      <button
+        onPointerDown={onIconPointerDown}
+        style={{ right: iconPos.right, bottom: iconPos.bottom }}
+        className="fixed z-50 w-14 h-14 rounded-full bg-cyan text-black shadow-xl hover:scale-105 transition-transform flex items-center justify-center text-2xl font-bold cursor-grab active:cursor-grabbing select-none touch-none"
+        aria-label={open ? "Close assistant" : "Open assistant"}
+        title="Click to toggle · drag to move"
+      >
+        {open ? "×" : "💬"}
+      </button>
     </>
   );
 }
