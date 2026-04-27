@@ -212,6 +212,22 @@ export async function removePageFromJob(
   return res.json();
 }
 
+export async function rotatePage(
+  jobId: string,
+  pageIndex: number,
+  direction: "left" | "right",
+): Promise<JobInit> {
+  const res = await fetch(
+    `${API_URL}/api/jobs/${jobId}/pages/${pageIndex}/rotate?direction=${direction}`,
+    { method: "POST" },
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }));
+    throw new Error(err.detail ?? `Request failed (${res.status})`);
+  }
+  return res.json();
+}
+
 export function pageCsvZipUrl(jobId: string, pageIndex: number): string {
   return `${API_URL}/api/jobs/${jobId}/pages/${pageIndex}/csv-zip`;
 }

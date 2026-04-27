@@ -277,6 +277,51 @@ async def create_job(files: list[UploadFile] = File(...)):
     return {"job_id": job.id, "status": job.status, "pages": job.pages}
 
 
+@api.post("/api/jobs/{job_id}/pages")
+async def add_pages(job_id: str, files: list[UploadFile] = File(...)):
+    if jobsvc.get_job(job_id) is None:
+        raise HTTPException(404, "job not found")
+    uploads: list[tuple[bytes, str]] = []
+    total = 0
+    for f in files:
+        if f.content_type not in ALLOWED_TYPES:
+            raise HTTPException(415, f"Unsupported file type: {f.content_type}")
+        data = await f.read()
+        if len(data) > MAX_BYTES:
+            raise HTTPException(413, f"{f.filename}: file too large (max 25 MB).")
+        if not data:
+            raise HTTPException(400, f"{f.filename}: empty file.")
+        total += len(data)
+        if total > MAX_TOTAL:
+            raise HTTPException(413, "Combined upload too large (max 100 MB).")
+        uploads.append((data, f.content_type))
+    try:
+        job = await asyncio.to_thread(jobsvc.add_pages_to_job, job_id, uploads)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"job_id": job.id, "status": job.status, "pages": job.pages}
+
+
+@api.delete("/api/jobs/{job_id}/pages/{page_index}")
+def delete_page(job_id: str, page_index: int):
+    try:
+        job = jobsvc.remove_page(job_id, page_index)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    return {"job_id": job.id, "status": job.status, "pages": job.pages}
+
+
+@api.post("/api/jobs/{job_id}/pages/{page_index}/rotate")
+def rotate_page(job_id: str, page_index: int, direction: str = "right"):
+    if direction not in ("left", "right"):
+        raise HTTPException(400, "direction must be 'left' or 'right'")
+    try:
+        job = jobsvc.rotate_page(job_id, page_index, direction)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    return {"job_id": job.id, "status": job.status, "pages": job.pages}
+
+
 @api.get("/api/jobs/{job_id}/pages/{page_index}")
 def get_page_image(job_id: str, page_index: int):
     path = jobsvc.page_image_path(job_id, page_index)

@@ -90,6 +90,17 @@ async def add_pages(job_id: str, files: list[UploadFile] = File(...)):
     return {"job_id": job.id, "status": job.status, "pages": job.pages}
 
 
+@router.post("/jobs/{job_id}/pages/{page_index}/rotate")
+def rotate_page(job_id: str, page_index: int, direction: str = "right"):
+    if direction not in ("left", "right"):
+        raise HTTPException(400, "direction must be 'left' or 'right'")
+    try:
+        job = jobsvc.rotate_page(job_id, page_index, direction)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    return {"job_id": job.id, "status": job.status, "pages": job.pages}
+
+
 @router.delete("/jobs/{job_id}/pages/{page_index}")
 def delete_page(job_id: str, page_index: int):
     try:

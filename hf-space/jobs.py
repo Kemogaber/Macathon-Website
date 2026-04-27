@@ -304,6 +304,37 @@ def add_pages_to_job(job_id: str, uploads: list[tuple[bytes, str]]) -> Job:
     return job
 
 
+def rotate_page(job_id: str, page_index: int, direction: str) -> Job:
+    """Rotate a page image 90° on disk; clear stale detections.
+
+    direction: 'left' = 90° counter-clockwise, 'right' = 90° clockwise.
+    Width/height are swapped in the page metadata. Detections are cleared
+    because their coordinates no longer apply to the rotated image; the
+    user re-runs Parse for that page after rotating.
+    """
+    job = _JOBS.get(job_id)
+    if job is None:
+        raise ValueError("job not found")
+    if page_index < 0 or page_index >= len(job.pages):
+        raise ValueError("page index out of range")
+
+    out_dir = _job_dir(job_id)
+    page = job.pages[page_index]
+    fpath = out_dir / page["filename"]
+    bgr = cv2.imread(str(fpath))
+    if bgr is None:
+        raise ValueError("page image unreadable")
+    code = cv2.ROTATE_90_COUNTERCLOCKWISE if direction == "left" else cv2.ROTATE_90_CLOCKWISE
+    rotated = cv2.rotate(bgr, code)
+    cv2.imwrite(str(fpath), rotated)
+    h, w = rotated.shape[:2]
+    page["width"] = w
+    page["height"] = h
+    page["detections"] = []
+    page["detected"] = False
+    return job
+
+
 def remove_page(job_id: str, page_index: int) -> Job:
     """Remove a page (and any tables on it) from a job. Reindexes the rest.
 

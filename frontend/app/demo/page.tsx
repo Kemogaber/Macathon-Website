@@ -21,6 +21,7 @@ import {
   jobZipUrl,
   pageImageUrl,
   removePageFromJob,
+  rotatePage,
   startRecognize,
   type ConfirmedQuad,
   type JobStatus,
@@ -129,6 +130,29 @@ export default function DemoPage() {
       toast.error("Couldn't add files", msg);
     } finally {
       setBusy(null);
+    }
+  }
+
+  async function handleRotateCurrentPage(direction: "left" | "right") {
+    if (!job) return;
+    const idx = currentPage;
+    try {
+      const j = await rotatePage(job.job_id, idx, direction);
+      setJob(j);
+      // Rotation invalidates detections and any rectangles drawn on this page.
+      setPageStates((prev) =>
+        prev.map((p, i) =>
+          i === idx ? { rects: [], activeRect: 0, detected: false, recognized: false } : p,
+        ),
+      );
+      setTables((prev) => prev.filter((t) => t.page_index !== idx));
+      toast.success(
+        "Rotated",
+        `Page ${idx + 1} rotated ${direction === "left" ? "↺" : "↻"} — re-run Parse`,
+      );
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Rotate failed.";
+      toast.error("Couldn't rotate", msg);
     }
   }
 
@@ -499,6 +523,22 @@ export default function DemoPage() {
                   onAdd={handleAddMoreFiles}
                 />
                 <button
+                  onClick={() => handleRotateCurrentPage("left")}
+                  disabled={busy !== null || ps.recognized}
+                  title="Rotate 90° left"
+                  className="w-8 h-7 rounded-lg border border-border bg-overlay hover:bg-overlay/70 text-muted-2 hover:text-text text-sm flex items-center justify-center disabled:opacity-30"
+                >
+                  ↺
+                </button>
+                <button
+                  onClick={() => handleRotateCurrentPage("right")}
+                  disabled={busy !== null || ps.recognized}
+                  title="Rotate 90° right"
+                  className="w-8 h-7 rounded-lg border border-border bg-overlay hover:bg-overlay/70 text-muted-2 hover:text-text text-sm flex items-center justify-center disabled:opacity-30"
+                >
+                  ↻
+                </button>
+                <button
                   onClick={handleRemoveCurrentPage}
                   disabled={busy !== null || job.pages.length <= 1}
                   title={
@@ -613,7 +653,7 @@ export default function DemoPage() {
             )}
 
             <QuadEditor
-              imageUrl={pageImageUrl(job.job_id, currentPage)}
+              imageUrl={`${pageImageUrl(job.job_id, currentPage)}?v=${job.pages[currentPage].width}x${job.pages[currentPage].height}`}
               imageWidth={job.pages[currentPage].width}
               imageHeight={job.pages[currentPage].height}
               rects={ps.rects}
