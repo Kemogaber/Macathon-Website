@@ -297,20 +297,32 @@ class DetailedOCR:
 
         parsed: list[dict] = []
         if not raw_results:
+            print("OCR: raw_results is empty")
             return parsed
 
         for res in raw_results:
             if res is None:
                 continue
-            # PaddleOCR v3+ object-style result
-            if hasattr(res, "rec_texts") and hasattr(res, "rec_polys"):
-                for text, poly in zip(res.rec_texts, res.rec_polys):
+
+            # PaddleOCR 3.x OCRResult: data may be exposed via attribute access
+            # (`res.rec_texts`) on some builds, dict-style (`res["rec_texts"]`)
+            # on others. Try both before falling through to the legacy parser.
+            texts = getattr(res, "rec_texts", None)
+            polys = getattr(res, "rec_polys", None)
+            if (texts is None or polys is None) and isinstance(res, dict):
+                texts = texts if texts is not None else res.get("rec_texts")
+                polys = polys if polys is not None else res.get("rec_polys")
+
+            if texts is not None and polys is not None:
+                for text, poly in zip(texts, polys):
                     if text and poly is not None:
                         parsed.append(
                             self._poly_to_entry(text, poly, scale_x, scale_y)
                         )
+                continue
+
             # Legacy v2 list-style result: [[poly, (text, conf)], ...]
-            elif isinstance(res, list):
+            if isinstance(res, list):
                 for line in res:
                     if isinstance(line, list) and len(line) == 2:
                         poly = line[0]
@@ -321,6 +333,16 @@ class DetailedOCR:
                                 parsed.append(
                                     self._poly_to_entry(text, poly, scale_x, scale_y)
                                 )
+                continue
+
+            # Last resort — log what we got so we can adapt
+            print(
+                f"OCR: unrecognized result type={type(res).__name__} "
+                f"keys={list(res.keys()) if isinstance(res, dict) else 'n/a'} "
+                f"attrs={[a for a in dir(res) if 'rec_' in a]}"
+            )
+
+        print(f"OCR: parsed {len(parsed)} text regions from {len(raw_results)} result(s)")
         return parsed
 
     @staticmethod
