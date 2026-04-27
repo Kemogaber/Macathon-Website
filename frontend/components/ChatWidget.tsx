@@ -54,8 +54,18 @@ export default function ChatWidget({ jobId, attachedTableCount = 0 }: Props) {
     saveMessages(messages);
   }, [messages]);
 
+  // Auto-scroll only when the user is already near the bottom — don't yank
+  // them down if they scrolled up to read previous messages.
+  const stickyBottomRef = useRef(true);
+  function onScroll() {
+    const el = scrollRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    stickyBottomRef.current = distanceFromBottom < 60;
+  }
   useEffect(() => {
     if (!open) return;
+    if (!stickyBottomRef.current) return;
     scrollRef.current?.scrollTo({ top: 1e9, behavior: "smooth" });
   }, [messages, open, busy]);
 
@@ -139,7 +149,7 @@ export default function ChatWidget({ jobId, attachedTableCount = 0 }: Props) {
       )}
 
       {open && (
-        <div className="fixed bottom-6 right-6 z-40 w-[380px] max-w-[calc(100vw-3rem)] h-[560px] max-h-[calc(100vh-3rem)] glass rounded-2xl border border-border shadow-2xl flex flex-col overflow-hidden">
+        <div className="fixed bottom-6 right-6 z-50 w-[380px] max-w-[calc(100vw-3rem)] h-[560px] max-h-[calc(100vh-6rem)] glass rounded-2xl border border-border shadow-2xl flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface-3">
             <div className="min-w-0">
               <div className="text-sm font-bold text-text">Assistant</div>
@@ -150,18 +160,18 @@ export default function ChatWidget({ jobId, attachedTableCount = 0 }: Props) {
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={clearChat}
                 disabled={messages.length === 0 && !busy}
-                className="text-[10px] font-mono px-2 py-1 rounded text-muted-2 hover:text-text hover:bg-overlay disabled:opacity-30"
+                className="text-xs font-mono px-2.5 py-1 rounded-md border border-border text-muted-2 hover:text-text hover:bg-overlay hover:border-cyan/40 disabled:opacity-30 disabled:cursor-not-allowed"
                 title="Clear conversation"
               >
                 Clear
               </button>
               <button
                 onClick={() => setOpen(false)}
-                className="text-muted-2 hover:text-text text-lg leading-none px-2"
+                className="text-muted-2 hover:text-text text-xl leading-none px-2"
                 aria-label="Close"
               >
                 ×
@@ -169,7 +179,11 @@ export default function ChatWidget({ jobId, attachedTableCount = 0 }: Props) {
             </div>
           </div>
 
-          <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 text-sm">
+          <div
+            ref={scrollRef}
+            onScroll={onScroll}
+            className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-3 text-sm"
+          >
             {messages.length === 0 && (
               <div className="text-muted-2 text-xs leading-relaxed">
                 Ask about your extracted tables, OCR fixes, or how the demo
