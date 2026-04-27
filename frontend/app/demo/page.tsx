@@ -8,7 +8,6 @@ import QuadEditor, {
 } from "@/components/QuadEditor";
 import ImageResults from "@/components/ImageResults";
 import {
-  cancelJob,
   createJob,
   detectPages,
   getJobStatus,
@@ -20,7 +19,7 @@ import {
   type JobStatus,
 } from "@/lib/api";
 import { useDemoStore, type PerPageState, type Step } from "@/lib/demoStore";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export default function DemoPage() {
   const {
@@ -57,22 +56,6 @@ export default function DemoPage() {
     if (isNaN(n)) return;
     const clamped = Math.max(1, Math.min(job.pages.length, n));
     setCurrentPage(clamped - 1);
-  }
-
-  async function handleCancel() {
-    if (!job || !busy) return;
-    if (busy === "upload") {
-      // The upload fetch already ran by the time poll/recognize starts;
-      // we can't abort the streamed body retroactively. Just clear UI busy.
-      setBusy(null);
-      return;
-    }
-    try {
-      await cancelJob(job.job_id);
-    } catch {}
-    if (pollRef.current) clearInterval(pollRef.current);
-    setBusy(null);
-    setErrorMsg("Cancelled.");
   }
 
   // ---------- step 1 → 2 : upload only (no auto-detect) ----------
@@ -529,38 +512,17 @@ export default function DemoPage() {
                 {Math.round(confirmProgress * 100)}%
               </span>
             )}
-            {busy && (
-              <button
-                onClick={handleCancel}
-                className="px-3 py-2 rounded-lg bg-red-500/15 border border-red-400/40 hover:bg-red-500/25 text-red-200 light:text-red-700 text-sm font-bold"
-              >
-                Cancel
-              </button>
-            )}
           </div>
 
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <button
               onClick={reset}
-              className="text-xs text-muted hover:text-text"
+              className="px-4 py-2 rounded-lg bg-overlay border border-border hover:border-cyan/40 text-text text-sm font-bold"
             >
               ← Start over
             </button>
             {tables.length > 0 && (
-              <div className="flex items-center gap-2 flex-wrap">
-                <a
-                  href={jobCsvUrl(job.job_id)}
-                  className="px-4 py-2 rounded-xl bg-emerald-500/15 border border-emerald-400/40 hover:bg-emerald-500/25 text-emerald-200 light:text-emerald-700 text-sm font-bold"
-                >
-                  Download one CSV
-                </a>
-                <a
-                  href={jobZipUrl(job.job_id)}
-                  className="px-4 py-2 rounded-xl bg-amber-500/15 border border-amber-400/40 hover:bg-amber-500/25 text-amber-100 light:text-amber-700 text-sm font-bold"
-                >
-                  Download ZIP of CSVs
-                </a>
-              </div>
+              <GlobalDownloadMenu jobId={job.job_id} />
             )}
           </div>
 
@@ -593,6 +555,57 @@ export default function DemoPage() {
           >
             Try again
           </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GlobalDownloadMenu({ jobId }: { jobId: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    window.addEventListener("mousedown", onClick);
+    return () => window.removeEventListener("mousedown", onClick);
+  }, [open]);
+
+  return (
+    <div className="relative inline-block" ref={ref}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="px-4 py-2 rounded-xl bg-emerald-500/15 border border-emerald-400/40 hover:bg-emerald-500/25 text-emerald-200 light:text-emerald-700 text-sm font-bold"
+      >
+        Download CSV ▾
+      </button>
+      {open && (
+        <div className="absolute right-0 mt-1 z-10 w-60 rounded-lg border border-border bg-surface-3 shadow-xl overflow-hidden">
+          <a
+            href={jobCsvUrl(jobId)}
+            download
+            onClick={() => setOpen(false)}
+            className="block w-full text-left px-3 py-2 text-xs font-mono text-text hover:bg-overlay"
+          >
+            One combined CSV
+            <div className="text-muted text-[10px] mt-0.5">
+              all tables in a single file
+            </div>
+          </a>
+          <a
+            href={jobZipUrl(jobId)}
+            download
+            onClick={() => setOpen(false)}
+            className="block w-full text-left px-3 py-2 text-xs font-mono text-text hover:bg-overlay border-t border-border"
+          >
+            ZIP of CSVs
+            <div className="text-muted text-[10px] mt-0.5">
+              one file per table
+            </div>
+          </a>
         </div>
       )}
     </div>

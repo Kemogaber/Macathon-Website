@@ -158,6 +158,20 @@ export default function QuadEditor({
     [zoom, fitScale],
   );
 
+  // Wheel-to-zoom on the frame (non-passive so we can preventDefault).
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+    function onWheel(e: WheelEvent) {
+      const target = e.target as Element | null;
+      if (!target || target.tagName !== "IMG") return;
+      e.preventDefault();
+      zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1 : -1);
+    }
+    frame.addEventListener("wheel", onWheel, { passive: false });
+    return () => frame.removeEventListener("wheel", onWheel);
+  }, [zoomAt]);
+
   // Compute fit scale on mount + on resize.
   useEffect(() => {
     function computeFit() {

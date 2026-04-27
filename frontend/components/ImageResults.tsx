@@ -116,6 +116,11 @@ export default function ImageResults({ jobId, tables }: Props) {
     downloadString(csv, `table_${t.index}.csv`, "text/csv");
   }
 
+  function downloadHtml() {
+    const wrapped = `<!doctype html><html><head><meta charset="utf-8"><title>Table ${t.index}</title><style>table{border-collapse:collapse;font-family:sans-serif}th,td{border:1px solid #ccc;padding:4px 8px}th{background:#eee}</style></head><body>${t.html}</body></html>`;
+    downloadString(wrapped, `table_${t.index}.html`, "text/html");
+  }
+
   return (
     <div className="glass rounded-2xl p-6 gradient-border">
       <div className="flex items-center justify-center gap-3 mb-4 flex-wrap">
@@ -211,13 +216,20 @@ export default function ImageResults({ jobId, tables }: Props) {
         </div>
       </div>
 
-      <div className="flex items-center justify-end gap-2 mt-4">
+      <div className="flex items-center justify-end gap-2 mt-4 flex-wrap">
         <button
           onClick={downloadEditedCsv}
           className="px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-400/40 hover:bg-emerald-500/25 text-xs font-mono text-emerald-200 light:text-emerald-700"
           title="Download this table as CSV (with your edits)"
         >
-          Download this table’s CSV
+          Download CSV
+        </button>
+        <button
+          onClick={downloadHtml}
+          className="px-3 py-1.5 rounded-lg bg-sky-500/15 border border-sky-400/40 hover:bg-sky-500/25 text-xs font-mono text-sky-200 light:text-sky-700"
+          title="Download this table as a standalone HTML file"
+        >
+          Download HTML
         </button>
       </div>
     </div>
