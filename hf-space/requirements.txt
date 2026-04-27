@@ -1,0 +1,28 @@
+gradio>=4.44.0
+fastapi
+uvicorn
+python-multipart
+pydantic
+
+# Table detection
+ultralytics
+
+# Structure recognition
+# Pinned: transformers >= 4.50 migrated config classes to huggingface_hub
+# strict dataclasses, which reject `dilation: null` in the table-transformer
+# v1.1 config and crash with StrictDataclassFieldValidationError.
+transformers==4.46.3
+huggingface_hub==0.26.5
+torch
+torchvision
+
+# OCR — PaddlePaddle + PaddleOCR
+# Note: paddlepaddle-gpu is auto-selected on ZeroGPU; use paddlepaddle for CPU-only
+paddlepaddle
+paddleocr
+
+# Utilities
+Pillow
+numpy
+opencv-python-headless
+pypdfium2

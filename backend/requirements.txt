@@ -2,3 +2,20 @@ fastapi==0.115.6
 uvicorn[standard]==0.34.0
 python-multipart==0.0.20
 pydantic==2.10.6
+
+# image / pdf handling
+numpy>=1.26
+opencv-python-headless>=4.10
+Pillow>=10.4
+pypdfium2>=4.30
+
+# ML pipeline
+torch>=2.4
+torchvision>=0.19
+transformers>=4.45
+huggingface_hub>=0.26
+ultralytics>=8.3
+
+# OCR
+paddlepaddle>=3.0
+paddleocr>=3.0

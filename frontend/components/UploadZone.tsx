@@ -7,7 +7,7 @@ interface Props {
   disabled?: boolean;
 }
 
-const ACCEPTED = ["image/jpeg", "image/png", "image/webp"];
+const ACCEPTED = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
 
 export default function UploadZone({ onFileSelect, disabled }: Props) {
   const [dragging, setDragging] = useState(false);
@@ -17,15 +17,15 @@ export default function UploadZone({ onFileSelect, disabled }: Props) {
   const handle = useCallback(
     (file: File) => {
       if (!ACCEPTED.includes(file.type)) {
-        setError("Only JPG, PNG, and WebP images are supported.");
+        setError("Only JPG, PNG, WebP, and PDF are supported.");
         return;
       }
-      if (file.size > 20 * 1024 * 1024) {
-        setError("File is too large. Maximum size is 20 MB.");
+      if (file.size > 25 * 1024 * 1024) {
+        setError("File is too large. Maximum size is 25 MB.");
         return;
       }
       setError(null);
-      setPreview(URL.createObjectURL(file));
+      setPreview(file.type === "application/pdf" ? null : URL.createObjectURL(file));
       onFileSelect(file);
     },
     [onFileSelect]
@@ -73,9 +73,9 @@ export default function UploadZone({ onFileSelect, disabled }: Props) {
               🖼️
             </div>
             <div>
-              <p className="text-white font-medium">Drop your image here</p>
+              <p className="text-white font-medium">Drop your image or PDF here</p>
               <p className="text-[#6b7280] text-sm mt-1">
-                or click to browse — JPG, PNG, WebP up to 20 MB
+                or click to browse — JPG, PNG, WebP, PDF up to 25 MB
               </p>
             </div>
             <span className="px-3 py-1 rounded-full border border-white/10 text-xs text-[#6b7280] font-mono">
