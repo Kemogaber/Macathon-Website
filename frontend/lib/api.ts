@@ -184,6 +184,34 @@ export async function cancelJob(jobId: string): Promise<void> {
   );
 }
 
+export async function addFilesToJob(jobId: string, files: File[]): Promise<JobInit> {
+  const form = new FormData();
+  for (const f of files) form.append("files", f);
+  const res = await fetch(`${API_URL}/api/jobs/${jobId}/pages`, {
+    method: "POST",
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }));
+    throw new Error(err.detail ?? `Request failed (${res.status})`);
+  }
+  return res.json();
+}
+
+export async function removePageFromJob(
+  jobId: string,
+  pageIndex: number,
+): Promise<JobInit> {
+  const res = await fetch(`${API_URL}/api/jobs/${jobId}/pages/${pageIndex}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }));
+    throw new Error(err.detail ?? `Request failed (${res.status})`);
+  }
+  return res.json();
+}
+
 export function pageCsvZipUrl(jobId: string, pageIndex: number): string {
   return `${API_URL}/api/jobs/${jobId}/pages/${pageIndex}/csv-zip`;
 }

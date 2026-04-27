@@ -200,6 +200,88 @@ def create_job(uploads: list[tuple[bytes, str]]) -> Job:
 
 
 # ---------------------------------------------------------------------------
+# add/remove pages on an existing job (mid-parse "Add more files" flow)
+# ---------------------------------------------------------------------------
+def _next_page_filename_index(job: "Job") -> int:
+    used = 0
+    for p in job.pages:
+        try:
+            n = int(p["filename"].split("_")[1].split(".")[0])
+            used = max(used, n)
+        except Exception:
+            pass
+    return used
+
+
+def add_pages_to_job(job_id: str, uploads: list[tuple[bytes, str]]) -> Job:
+    job = _JOBS.get(job_id)
+    if job is None:
+        raise ValueError("job not found")
+    out_dir = _job_dir(job_id)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    base = _next_page_filename_index(job)
+    new_paths: list[Path] = []
+    for data, content_type in uploads:
+        added = _ingest_one(data, content_type, out_dir, base=base + len(new_paths))
+        new_paths.extend(added)
+
+    if not new_paths:
+        raise ValueError("No usable pages in added files.")
+
+    start = len(job.pages)
+    for offset, p in enumerate(new_paths):
+        bgr = cv2.imread(str(p))
+        h, w = bgr.shape[:2]
+        job.pages.append({
+            "index": start + offset,
+            "filename": p.name,
+            "width": w,
+            "height": h,
+            "detections": [],
+            "detected": False,
+        })
+    return job
+
+
+def remove_page(job_id: str, page_index: int) -> Job:
+    job = _JOBS.get(job_id)
+    if job is None:
+        raise ValueError("job not found")
+    if page_index < 0 or page_index >= len(job.pages):
+        raise ValueError("page index out of range")
+
+    out_dir = _job_dir(job_id)
+
+    keep_tables: list[TableResult] = []
+    for t in job.tables:
+        if t.page_index == page_index:
+            for ext in (".png", ".csv"):
+                f = out_dir / f"table_{t.index}{ext}"
+                if f.exists():
+                    try:
+                        f.unlink()
+                    except Exception:
+                        pass
+            continue
+        if t.page_index > page_index:
+            t.page_index -= 1
+        keep_tables.append(t)
+    job.tables = keep_tables
+
+    removed = job.pages.pop(page_index)
+    fpath = out_dir / removed["filename"]
+    if fpath.exists():
+        try:
+            fpath.unlink()
+        except Exception:
+            pass
+    for i, p in enumerate(job.pages):
+        p["index"] = i
+    return job
+
+
+# ---------------------------------------------------------------------------
 # detect: run YOLO detection on selected pages (None = all)
 # ---------------------------------------------------------------------------
 def run_detect(job_id: str, page_indices: list[int] | None) -> None:

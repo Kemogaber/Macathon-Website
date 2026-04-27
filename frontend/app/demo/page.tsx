@@ -10,6 +10,7 @@ import QuadEditor, {
 } from "@/components/QuadEditor";
 import ImageResults from "@/components/ImageResults";
 import {
+  addFilesToJob,
   cancelJob,
   createJob,
   detectPages,
@@ -18,6 +19,7 @@ import {
   jobXlsxUrl,
   jobZipUrl,
   pageImageUrl,
+  removePageFromJob,
   startRecognize,
   type ConfirmedQuad,
   type JobStatus,
@@ -95,6 +97,66 @@ export default function DemoPage() {
       setStep("error");
     } finally {
       setBusy(null);
+    }
+  }
+
+  async function handleAddMoreFiles(newFiles: File[]) {
+    if (!job || newFiles.length === 0) return;
+    setErrorMsg("");
+    setBusy("upload");
+    const prevPageCount = job.pages.length;
+    try {
+      const j = await addFilesToJob(job.job_id, newFiles);
+      setJob(j);
+      setPageStates((prev) => {
+        const next = [...prev];
+        for (let i = next.length; i < j.pages.length; i++) {
+          next.push({ rects: [], activeRect: 0, detected: false, recognized: false });
+        }
+        return next;
+      });
+      setCurrentPage(prevPageCount);
+      toast.success(
+        "Files added",
+        `+${j.pages.length - prevPageCount} page${
+          j.pages.length - prevPageCount === 1 ? "" : "s"
+        }`,
+      );
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Add failed.";
+      setErrorMsg(msg);
+      toast.error("Couldn't add files", msg);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function handleRemoveCurrentPage() {
+    if (!job) return;
+    if (job.pages.length <= 1) {
+      toast.error("Can't remove", "This is the last page — use Start over instead.");
+      return;
+    }
+    if (!confirm(`Remove page ${currentPage + 1}? Tables on this page will be lost.`)) {
+      return;
+    }
+    const removingIdx = currentPage;
+    try {
+      const j = await removePageFromJob(job.job_id, removingIdx);
+      setJob(j);
+      setPageStates((prev) => prev.filter((_, i) => i !== removingIdx));
+      setTables((prev) =>
+        prev
+          .filter((t) => t.page_index !== removingIdx)
+          .map((t) =>
+            t.page_index > removingIdx ? { ...t, page_index: t.page_index - 1 } : t,
+          ),
+      );
+      setCurrentPage((cur) => Math.max(0, Math.min(cur, j.pages.length - 1)));
+      toast.success("Page removed", `Page ${removingIdx + 1} dropped`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Remove failed.";
+      toast.error("Couldn't remove", msg);
     }
   }
 
@@ -430,6 +492,24 @@ export default function DemoPage() {
               <span className="text-xs text-muted font-mono">
                 {detectedCount} parsed · {recognizedCount} confirmed
               </span>
+              <span className="ml-auto flex items-center gap-2">
+                <AddMoreFilesButton
+                  disabled={busy !== null}
+                  onAdd={handleAddMoreFiles}
+                />
+                <button
+                  onClick={handleRemoveCurrentPage}
+                  disabled={busy !== null || job.pages.length <= 1}
+                  title={
+                    job.pages.length <= 1
+                      ? "Can't remove the last page"
+                      : `Remove page ${currentPage + 1}`
+                  }
+                  className="px-2.5 py-1 rounded-lg border border-red-400/40 bg-red-500/10 hover:bg-red-500/20 text-red-200 light:text-red-700 text-xs font-mono disabled:opacity-30"
+                >
+                  Remove page
+                </button>
+              </span>
             </div>
             {job.pages.length > 1 && (
               <input
@@ -727,6 +807,40 @@ function PageStatusBadge({ state }: { state: PerPageState }) {
     <span className="px-2 py-0.5 rounded-full bg-overlay text-muted-2 border border-border text-xs font-mono">
       ○ Not parsed
     </span>
+  );
+}
+
+function AddMoreFilesButton({
+  onAdd,
+  disabled,
+}: {
+  onAdd: (files: File[]) => void | Promise<void>;
+  disabled: boolean;
+}) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  return (
+    <>
+      <input
+        ref={inputRef}
+        type="file"
+        multiple
+        accept="image/*,application/pdf,application/zip"
+        className="hidden"
+        onChange={(e) => {
+          const list = e.target.files;
+          if (!list || list.length === 0) return;
+          onAdd(Array.from(list));
+          e.target.value = "";
+        }}
+      />
+      <button
+        onClick={() => inputRef.current?.click()}
+        disabled={disabled}
+        className="px-2.5 py-1 rounded-lg border border-cyan/40 bg-cyan/10 hover:bg-cyan/20 text-cyan text-xs font-mono disabled:opacity-30"
+      >
+        + Add files
+      </button>
+    </>
   );
 }
 

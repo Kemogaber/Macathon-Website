@@ -253,6 +253,104 @@ def create_job(uploads: list[tuple[bytes, str]]) -> Job:
 
 
 # ---------------------------------------------------------------------------
+# add/remove pages on an existing job (mid-parse "Add more files" flow)
+# ---------------------------------------------------------------------------
+def _next_page_filename_index(job: "Job") -> int:
+    """Return the next safe page filename suffix, never reusing a removed one.
+
+    Files are named page_NNNN.png; removing page index 2 leaves page_0001.png,
+    page_0002.png, page_0004.png on disk — we want the next add to pick 0005,
+    not 0003, so re-detection state stays unambiguous.
+    """
+    used = 0
+    for p in job.pages:
+        try:
+            n = int(p["filename"].split("_")[1].split(".")[0])
+            used = max(used, n)
+        except Exception:
+            pass
+    return used
+
+
+def add_pages_to_job(job_id: str, uploads: list[tuple[bytes, str]]) -> Job:
+    """Append new pages to an existing job. Reuses the same rasterize logic."""
+    job = _JOBS.get(job_id)
+    if job is None:
+        raise ValueError("job not found")
+    out_dir = _job_dir(job_id)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    base = _next_page_filename_index(job)
+    new_paths: list[Path] = []
+    for data, content_type in uploads:
+        added = _ingest_one(data, content_type, out_dir, base=base + len(new_paths))
+        new_paths.extend(added)
+
+    if not new_paths:
+        raise ValueError("No usable pages in added files.")
+
+    start = len(job.pages)
+    for offset, p in enumerate(new_paths):
+        bgr = cv2.imread(str(p))
+        h, w = bgr.shape[:2]
+        job.pages.append({
+            "index": start + offset,
+            "filename": p.name,
+            "width": w,
+            "height": h,
+            "detections": [],
+            "detected": False,
+        })
+    return job
+
+
+def remove_page(job_id: str, page_index: int) -> Job:
+    """Remove a page (and any tables on it) from a job. Reindexes the rest.
+
+    Existing recognized tables on remaining pages keep their table_<idx>.png /
+    .csv files unchanged — only their `page_index` is renumbered to match the
+    new positions. Tables that were on the removed page are dropped (their
+    files are unlinked).
+    """
+    job = _JOBS.get(job_id)
+    if job is None:
+        raise ValueError("job not found")
+    if page_index < 0 or page_index >= len(job.pages):
+        raise ValueError("page index out of range")
+
+    out_dir = _job_dir(job_id)
+
+    # Drop tables that lived on the removed page; renumber the rest.
+    keep_tables: list[TableResult] = []
+    for t in job.tables:
+        if t.page_index == page_index:
+            for ext in (".png", ".csv"):
+                f = out_dir / f"table_{t.index}{ext}"
+                if f.exists():
+                    try:
+                        f.unlink()
+                    except Exception:
+                        pass
+            continue
+        if t.page_index > page_index:
+            t.page_index -= 1
+        keep_tables.append(t)
+    job.tables = keep_tables
+
+    # Unlink the page image and remove the meta entry; renumber the rest.
+    removed = job.pages.pop(page_index)
+    fpath = out_dir / removed["filename"]
+    if fpath.exists():
+        try:
+            fpath.unlink()
+        except Exception:
+            pass
+    for i, p in enumerate(job.pages):
+        p["index"] = i
+    return job
+
+
+# ---------------------------------------------------------------------------
 # detect: run YOLO detection on selected pages (None = all)
 # ---------------------------------------------------------------------------
 def run_detect(job_id: str, page_indices: list[int] | None) -> None:
