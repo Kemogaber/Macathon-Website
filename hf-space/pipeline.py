@@ -1,3 +1,9 @@
+import os
+# Disable oneDNN before paddle initializes: paddle's PIR-based executor crashes
+# with NotImplementedError on `pir::ArrayAttribute<DoubleAttribute>` in the
+# oneDNN instruction path. Must be set before any paddle import.
+os.environ.setdefault("FLAGS_use_mkldnn", "0")
+
 import io
 import json
 import time
@@ -143,7 +149,7 @@ class OCRModule:
     def extract_text(self, cell_crop: Image.Image) -> str:
         """Run OCR on a single cell crop and return text."""
         arr = np.array(cell_crop)
-        result = self.ocr.ocr(arr, cls=True)
+        result = self.ocr.ocr(arr)
         if not result or not result[0]:
             return ""
         lines = [line[1][0] for line in result[0] if line[1][1] > 0.3]
