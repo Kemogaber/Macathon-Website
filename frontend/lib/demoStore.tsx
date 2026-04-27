@@ -19,6 +19,9 @@ export interface PerPageState {
   activeRect: number;
   detected: boolean;
   recognized: boolean;
+  /** Bumped on every rotate so the image URL cache-buster always changes,
+   *  even when 180° brings dimensions back to the originals. */
+  rotateVersion: number;
 }
 
 export type BusyKind =

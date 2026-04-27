@@ -100,6 +100,7 @@ export default function DemoPage() {
           activeRect: 0,
           detected: false,
           recognized: false,
+          rotateVersion: 0,
         })),
       );
       setCurrentPage(0);
@@ -131,7 +132,7 @@ export default function DemoPage() {
       setPageStates((prev) => {
         const next = [...prev];
         for (let i = next.length; i < j.pages.length; i++) {
-          next.push({ rects: [], activeRect: 0, detected: false, recognized: false });
+          next.push({ rects: [], activeRect: 0, detected: false, recognized: false, rotateVersion: 0 });
         }
         return next;
       });
@@ -159,7 +160,16 @@ export default function DemoPage() {
       setJob(j);
       setPageStates((prev) =>
         prev.map((p, i) =>
-          i === idx ? { rects: [], activeRect: 0, detected: false, recognized: false } : p,
+          i === idx
+            ? {
+                ...p,
+                rects: [],
+                activeRect: 0,
+                detected: false,
+                recognized: false,
+                rotateVersion: (p.rotateVersion ?? 0) + 1,
+              }
+            : p,
         ),
       );
       setTables((prev) => prev.filter((t) => t.page_index !== idx));
@@ -662,7 +672,7 @@ export default function DemoPage() {
             )}
 
             <QuadEditor
-              imageUrl={`${pageImageUrl(job.job_id, currentPage)}?v=${job.pages[currentPage].width}x${job.pages[currentPage].height}`}
+              imageUrl={`${pageImageUrl(job.job_id, currentPage)}?v=${job.pages[currentPage].width}x${job.pages[currentPage].height}&r=${ps.rotateVersion ?? 0}`}
               imageWidth={job.pages[currentPage].width}
               imageHeight={job.pages[currentPage].height}
               rects={ps.rects}

@@ -341,6 +341,146 @@ export function RecommendBlock({ spec }: { spec: RecommendSpec | null }) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Tiny markdown renderer for assistant text — we don't need the full spec,
+// just bullets / numbered lists / **bold** / *italic* / `code` / [link](url)
+// and paragraph breaks. Anything else falls through as plain text.
+// ---------------------------------------------------------------------------
+
+function renderInline(text: string, keyBase: string): React.ReactNode[] {
+  const out: React.ReactNode[] = [];
+  // Order matters: code first (its content is opaque), then links, then
+  // bold (** before *), then italic.
+  const re = /(`[^`\n]+`)|(\[[^\]\n]+\]\([^)\s]+\))|(\*\*[^*\n]+\*\*)|(\*[^*\n]+\*)/g;
+  let last = 0;
+  let i = 0;
+  for (const m of text.matchAll(re)) {
+    const idx = m.index ?? 0;
+    if (idx > last) out.push(text.slice(last, idx));
+    const tok = m[0];
+    if (tok.startsWith("`")) {
+      out.push(
+        <code
+          key={`${keyBase}-c${i}`}
+          className="px-1 py-0.5 rounded bg-overlay border border-border font-mono text-[11px]"
+        >
+          {tok.slice(1, -1)}
+        </code>,
+      );
+    } else if (tok.startsWith("[")) {
+      const close = tok.indexOf("](");
+      const label = tok.slice(1, close);
+      const url = tok.slice(close + 2, -1);
+      const safe = /^https?:\/\//i.test(url) ? url : "#";
+      out.push(
+        <a
+          key={`${keyBase}-l${i}`}
+          href={safe}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-cyan underline decoration-cyan/40 hover:decoration-cyan"
+        >
+          {label}
+        </a>,
+      );
+    } else if (tok.startsWith("**")) {
+      out.push(
+        <strong key={`${keyBase}-b${i}`} className="font-bold text-text">
+          {tok.slice(2, -2)}
+        </strong>,
+      );
+    } else {
+      out.push(
+        <em key={`${keyBase}-i${i}`} className="italic">
+          {tok.slice(1, -1)}
+        </em>,
+      );
+    }
+    last = idx + tok.length;
+    i++;
+  }
+  if (last < text.length) out.push(text.slice(last));
+  return out;
+}
+
+interface MdBlock {
+  kind: "p" | "ul" | "ol";
+  items: string[]; // for p: single item; for lists: each li
+}
+
+function parseBlocks(text: string): MdBlock[] {
+  const lines = text.split("\n");
+  const out: MdBlock[] = [];
+  let para: string[] = [];
+  const flushPara = () => {
+    if (para.length) {
+      out.push({ kind: "p", items: [para.join("\n")] });
+      para = [];
+    }
+  };
+  let i = 0;
+  while (i < lines.length) {
+    const ln = lines[i];
+    const bullet = /^\s*[-*]\s+(.*)$/.exec(ln);
+    const numbered = /^\s*\d+\.\s+(.*)$/.exec(ln);
+    if (bullet || numbered) {
+      flushPara();
+      const kind: "ul" | "ol" = bullet ? "ul" : "ol";
+      const items: string[] = [];
+      while (i < lines.length) {
+        const m = kind === "ul"
+          ? /^\s*[-*]\s+(.*)$/.exec(lines[i])
+          : /^\s*\d+\.\s+(.*)$/.exec(lines[i]);
+        if (!m) break;
+        items.push(m[1]);
+        i++;
+      }
+      out.push({ kind, items });
+      continue;
+    }
+    if (ln.trim() === "") {
+      flushPara();
+    } else {
+      para.push(ln);
+    }
+    i++;
+  }
+  flushPara();
+  return out;
+}
+
+export function MarkdownText({ text }: { text: string }) {
+  const blocks = parseBlocks(text);
+  if (blocks.length === 0) return null;
+  return (
+    <div className="space-y-1.5">
+      {blocks.map((b, bi) => {
+        if (b.kind === "p") {
+          return (
+            <p key={bi} className="whitespace-pre-wrap break-words leading-snug">
+              {renderInline(b.items[0], `p${bi}`)}
+            </p>
+          );
+        }
+        const ListTag = b.kind === "ul" ? "ul" : "ol";
+        const listClass =
+          b.kind === "ul"
+            ? "list-disc list-inside space-y-0.5 pl-1"
+            : "list-decimal list-inside space-y-0.5 pl-1";
+        return (
+          <ListTag key={bi} className={listClass}>
+            {b.items.map((it, ii) => (
+              <li key={ii} className="leading-snug">
+                {renderInline(it, `b${bi}i${ii}`)}
+              </li>
+            ))}
+          </ListTag>
+        );
+      })}
+    </div>
+  );
+}
+
 function BadBlock({ label }: { label: string }) {
   return (
     <div className="my-2 rounded-md border border-red-400/40 bg-red-500/10 px-2 py-1 text-[10px] font-mono text-red-300">

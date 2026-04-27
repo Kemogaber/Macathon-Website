@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { streamChat, type ChatMessage } from "@/lib/api";
 import {
   ChartBlock,
+  MarkdownText,
   PatchBlock,
   RecommendBlock,
   parseSegments,
@@ -346,11 +347,7 @@ function AssistantContent({ content }: { content: string }) {
     <>
       {segments.map((s, i) => {
         if (s.kind === "text") {
-          return (
-            <span key={i} className="whitespace-pre-wrap break-words">
-              {s.text}
-            </span>
-          );
+          return <MarkdownText key={i} text={s.text} />;
         }
         if (s.kind === "chart") {
           return <ChartBlock key={i} spec={s.spec} />;
