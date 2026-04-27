@@ -1,3 +1,4 @@
+import asyncio
 import io
 import gradio as gr
 from fastapi import (
@@ -90,7 +91,8 @@ async def extract(file: UploadFile = File(...)):
             "/api/extract takes a single image.",
         )
     try:
-        result = get_pipeline().extract(data)
+        async with jobsvc.inference_slot():
+            result = await asyncio.to_thread(get_pipeline().extract, data)
     except Exception as e:
         raise HTTPException(500, str(e))
     return ExtractionResponse(**result)
@@ -116,7 +118,8 @@ async def create_job(files: list[UploadFile] = File(...)):
             raise HTTPException(413, "Combined upload too large (max 100 MB).")
         uploads.append((data, f.content_type))
     try:
-        job = jobsvc.create_job(uploads)
+        # PDF rasterize + cv2 reads are CPU-bound — must not block the loop.
+        job = await asyncio.to_thread(jobsvc.create_job, uploads)
     except ValueError as e:
         raise HTTPException(400, str(e))
     except Exception as e:
@@ -133,11 +136,12 @@ def get_page_image(job_id: str, page_index: int):
 
 
 @api.post("/api/jobs/{job_id}/detect")
-def detect(job_id: str, body: DetectRequest):
+async def detect(job_id: str, body: DetectRequest):
     job = jobsvc.get_job(job_id)
     if job is None:
         raise HTTPException(404, "job not found")
-    jobsvc.run_detect(job_id, body.pages)
+    async with jobsvc.inference_slot():
+        await asyncio.to_thread(jobsvc.run_detect, job_id, body.pages)
     return {
         "pages": [
             {
@@ -165,15 +169,23 @@ def page_csv_zip(job_id: str, page_index: int):
     )
 
 
+async def _run_recognize_task(job_id: str, confirmed: list[dict]) -> None:
+    """Take the inference slot, then run the sync pipeline in a thread.
+    Multiple recognize jobs queue up; the event loop stays free for status
+    polls and page-image fetches throughout."""
+    async with jobsvc.inference_slot():
+        await asyncio.to_thread(jobsvc.run_recognize, job_id, confirmed)
+
+
 @api.post("/api/jobs/{job_id}/recognize")
-def recognize(job_id: str, body: RecognizeRequest, background: BackgroundTasks):
+async def recognize(job_id: str, body: RecognizeRequest, background: BackgroundTasks):
     job = jobsvc.get_job(job_id)
     if job is None:
         raise HTTPException(404, "job not found")
     if not body.confirmed:
         raise HTTPException(400, "no confirmed tables")
     confirmed = [c.model_dump() for c in body.confirmed]
-    background.add_task(jobsvc.run_recognize, job_id, confirmed)
+    background.add_task(_run_recognize_task, job_id, confirmed)
     job.status = "running"
     job.progress = 0.0
     return {"status": "running"}

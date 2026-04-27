@@ -10,6 +10,7 @@ TTL expiry by `cleanup_expired()` (called opportunistically on each request).
 """
 from __future__ import annotations
 
+import asyncio
 import io
 import os
 import shutil
@@ -60,6 +61,20 @@ class Job:
 
 _JOBS: dict[str, Job] = {}
 _LOCK = threading.Lock()
+
+# Single-slot semaphore: inference (YOLO/TSR/OCR) is not safe to run in
+# parallel on the shared singleton models, and the HF Space only has 2 vCPU
+# anyway — concurrent inference just thrashes. All inference goes through
+# `inference_slot()`. Endpoints stay async, so waiters suspend on the
+# semaphore instead of holding a threadpool slot.
+_inference_sem: asyncio.Semaphore | None = None
+
+
+def inference_slot() -> asyncio.Semaphore:
+    global _inference_sem
+    if _inference_sem is None:
+        _inference_sem = asyncio.Semaphore(1)
+    return _inference_sem
 
 
 # Lightweight rolling metrics for the health dashboard.
