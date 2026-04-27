@@ -127,7 +127,15 @@ export default function DemoPage() {
     const confirmed: ConfirmedQuad[] = [];
     pageStates.forEach((p, idx) => {
       if (!p.confirmed) return;
-      p.quads.forEach((q) => confirmed.push({ page_index: idx, quad: q }));
+      const detected = job.pages[idx].detections;
+      p.quads.forEach((q, qi) => {
+        const score = detected[qi]?.score;
+        confirmed.push({
+          page_index: idx,
+          quad: q,
+          score: typeof score === "number" ? score : 0,
+        });
+      });
     });
     if (confirmed.length === 0) {
       setErrorMsg("Confirm at least one page before processing.");
