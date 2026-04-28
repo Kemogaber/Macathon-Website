@@ -149,6 +149,9 @@ export default function ImageResults({ jobId, tables }: Props) {
     return () => window.removeEventListener("tablex:applyPatch", onPatch);
   }, [tables, toast]);
 
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const [swipeDx, setSwipeDx] = useState(0);
+
   const safeImg = Math.min(activeImg, Math.max(0, groups.length - 1));
   const group = groups[safeImg];
   const safeTable = Math.min(
@@ -258,13 +261,55 @@ export default function ImageResults({ jobId, tables }: Props) {
         <div>
           <p className="text-xs uppercase tracking-wider text-muted mb-2 text-center">
             Cropped image
+            {groups.length > 1 && (
+              <span className="ml-2 text-muted-2 normal-case">· swipe to switch</span>
+            )}
           </p>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={tableImageUrl(jobId, t.index)}
-            alt={`Table ${t.index}`}
-            className="rounded-lg border border-border max-h-[18rem] sm:max-h-[28rem] w-full object-contain bg-input"
-          />
+          <div
+            className="relative overflow-hidden touch-pan-y select-none"
+            onTouchStart={(e) => {
+              const t0 = e.touches[0];
+              touchStart.current = { x: t0.clientX, y: t0.clientY };
+              setSwipeDx(0);
+            }}
+            onTouchMove={(e) => {
+              const s = touchStart.current;
+              if (!s) return;
+              const t0 = e.touches[0];
+              const dx = t0.clientX - s.x;
+              const dy = t0.clientY - s.y;
+              if (Math.abs(dx) > Math.abs(dy)) {
+                setSwipeDx(dx);
+              }
+            }}
+            onTouchEnd={() => {
+              const dx = swipeDx;
+              touchStart.current = null;
+              setSwipeDx(0);
+              const threshold = 50;
+              if (dx <= -threshold && safeImg < groups.length - 1) {
+                setActiveImg((i) => Math.min(groups.length - 1, i + 1));
+              } else if (dx >= threshold && safeImg > 0) {
+                setActiveImg((i) => Math.max(0, i - 1));
+              }
+            }}
+            onTouchCancel={() => {
+              touchStart.current = null;
+              setSwipeDx(0);
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={tableImageUrl(jobId, t.index)}
+              alt={`Table ${t.index}`}
+              draggable={false}
+              style={{
+                transform: `translateX(${swipeDx}px)`,
+                transition: swipeDx === 0 ? "transform 200ms ease" : "none",
+              }}
+              className="rounded-lg border border-border max-h-[18rem] sm:max-h-[28rem] w-full object-contain bg-input"
+            />
+          </div>
         </div>
         <div className="w-full">
           <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
