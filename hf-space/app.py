@@ -224,7 +224,23 @@ _CHAT_SYSTEM_PROMPT = (
     "```\n"
     "Only emit a patch when confident; otherwise mention the concern in "
     "prose without a patch block. Multiple patch blocks per reply are "
-    "allowed."
+    "allowed.\n\n"
+    "## Calendar\n"
+    "When the table contains dated events (exam timetables, assignment "
+    "due dates, schedules, deadlines), emit a fenced `calendar` block "
+    "alongside a short prose summary. The frontend renders it as a "
+    "month-grid with the events highlighted. Schema:\n"
+    "```calendar\n"
+    '{\n'
+    '  "title": "optional title",\n'
+    '  "events": [\n'
+    '    {"date": "YYYY-MM-DD", "label": "Math Exam", "time": "09:00", "color": "optional CSS color"}\n'
+    '  ]\n'
+    '}\n'
+    "```\n"
+    "Dates MUST be ISO `YYYY-MM-DD`. If the table only gives day/month, "
+    "infer a sensible year from context and say so in prose. Skip rows "
+    "without a parseable date. Keep `label` short (1–3 words)."
 )
 
 

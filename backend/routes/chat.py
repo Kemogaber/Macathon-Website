@@ -107,7 +107,24 @@ _SYSTEM_PROMPT = (
     "- other / unclear → Google Sheets (https://sheets.google.com), "
     "Excel Online (https://www.office.com/launch/excel).\n"
     "Emit at most one `recommend` block per reply, and only when you have "
-    "real signal — never guess from an empty table."
+    "real signal — never guess from an empty table.\n\n"
+    "## Calendar\n"
+    "When the table contains dated events (exam timetables, assignment "
+    "due dates, schedules, deadlines), emit a fenced `calendar` block "
+    "alongside a short prose summary. The frontend renders it as a "
+    "month-grid with the events highlighted. Schema:\n"
+    "```calendar\n"
+    '{\n'
+    '  "title": "optional title",\n'
+    '  "events": [\n'
+    '    {"date": "YYYY-MM-DD", "label": "Math Exam", "time": "09:00", "color": "optional CSS color"}\n'
+    '  ]\n'
+    '}\n'
+    "```\n"
+    "Dates MUST be ISO `YYYY-MM-DD`. If the table only gives day/month, "
+    "infer a sensible year from context (the current academic year, or "
+    "the year mentioned elsewhere in the table) and say so in prose. "
+    "Skip rows without a parseable date. Keep `label` short (1–3 words)."
 )
 
 

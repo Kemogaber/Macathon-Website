@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { streamChat, type ChatMessage } from "@/lib/api";
 import {
+  CalendarBlock,
   ChartBlock,
   MarkdownText,
   PatchBlock,
@@ -231,8 +232,8 @@ export default function ChatWidget({
                   left: 8,
                   right: 8,
                   bottom: iconPos.bottom + ICON_SIZE + 8,
-                  height: `calc(100vh - ${iconPos.bottom + ICON_SIZE + 24}px)`,
-                  maxHeight: `calc(100vh - ${iconPos.bottom + ICON_SIZE + 24}px)`,
+                  height: `min(70vh, calc(100vh - ${iconPos.bottom + ICON_SIZE + 24}px))`,
+                  maxHeight: `min(70vh, calc(100vh - ${iconPos.bottom + ICON_SIZE + 24}px))`,
                 }
               : {
                   // Anchor panel's bottom-right to icon's top-left (with a small gap).
@@ -264,6 +265,14 @@ export default function ChatWidget({
                 title="Clear conversation"
               >
                 Clear
+              </button>
+              <button
+                onClick={() => setOpen(false)}
+                className="w-8 h-8 rounded-md border border-border text-muted-2 hover:text-text hover:bg-overlay hover:border-cyan/40 flex items-center justify-center text-lg leading-none"
+                aria-label="Close assistant"
+                title="Close"
+              >
+                ×
               </button>
             </div>
           </div>
@@ -364,6 +373,9 @@ function AssistantContent({ content }: { content: string }) {
         }
         if (s.kind === "recommend") {
           return <RecommendBlock key={i} spec={s.spec} />;
+        }
+        if (s.kind === "calendar") {
+          return <CalendarBlock key={i} spec={s.spec} />;
         }
         return <PatchBlock key={i} spec={s.spec} />;
       })}

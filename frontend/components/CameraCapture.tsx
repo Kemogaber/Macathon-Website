@@ -14,7 +14,25 @@ interface Crop {
   w: number;
   h: number;
 }
-type Filter = "original" | "enhance";
+type Filter = "original" | "enhance" | "bw" | "document" | "high-contrast";
+
+const FILTER_LABELS: Record<Filter, string> = {
+  original: "Original",
+  enhance: "Enhance",
+  bw: "B&W",
+  "high-contrast": "High contrast",
+  document: "Document",
+};
+
+// CSS preview filters — must visually match the canvas-time effects in
+// `applyFilter` below as closely as the CSS filter primitives allow.
+const FILTER_CSS: Record<Filter, string | undefined> = {
+  original: undefined,
+  enhance: "contrast(1.15) saturate(1.1) brightness(1.05)",
+  bw: "grayscale(1) contrast(1.05)",
+  "high-contrast": "contrast(1.5) saturate(1.2) brightness(1.05)",
+  document: "grayscale(1) contrast(1.6) brightness(1.1)",
+};
 
 interface Shot {
   id: number;
@@ -46,9 +64,24 @@ export default function CameraCapture({ open, onClose, onCapture }: Props) {
     (async () => {
       try {
         const s = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            // Continuous autofocus where supported (Chrome/Android, recent iOS).
+            // Unknown constraints are ignored, so this is safe to always request.
+            advanced: [{ focusMode: "continuous" } as MediaTrackConstraintSet],
+          },
           audio: false,
         });
+        // Best-effort: re-apply continuous focus after the track is live; some
+        // implementations only honor it via applyConstraints, not getUserMedia.
+        const track = s.getVideoTracks()[0];
+        if (track) {
+          track
+            .applyConstraints({ advanced: [{ focusMode: "continuous" } as MediaTrackConstraintSet] })
+            .catch(() => {});
+        }
         if (cancelled) {
           s.getTracks().forEach((t) => t.stop());
           return;
@@ -173,7 +206,25 @@ export default function CameraCapture({ open, onClose, onCapture }: Props) {
               ref={videoRef}
               playsInline
               muted
-              className="max-w-full max-h-[70vh] rounded-xl border border-white/10 bg-black"
+              onClick={(e) => {
+                const v = videoRef.current;
+                const track = streamRef.current?.getVideoTracks()[0];
+                if (!v || !track) return;
+                const r = v.getBoundingClientRect();
+                const x = (e.clientX - r.left) / r.width;
+                const y = (e.clientY - r.top) / r.height;
+                track
+                  .applyConstraints({
+                    advanced: [
+                      {
+                        focusMode: "single-shot",
+                        pointsOfInterest: [{ x, y }],
+                      } as MediaTrackConstraintSet,
+                    ],
+                  })
+                  .catch(() => {});
+              }}
+              className="max-w-full max-h-[70vh] rounded-xl border border-white/10 bg-black cursor-crosshair"
             />
           )}
           <div className="flex items-center gap-3 flex-wrap justify-center">
@@ -243,20 +294,17 @@ export default function CameraCapture({ open, onClose, onCapture }: Props) {
           </div>
 
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-white/60 text-xs font-mono">Filter:</span>
-              <FilterButton
-                active={shots[selectedIdx].filter === "original"}
-                onClick={() => setShotFilter(selectedIdx, "original")}
-              >
-                Original
-              </FilterButton>
-              <FilterButton
-                active={shots[selectedIdx].filter === "enhance"}
-                onClick={() => setShotFilter(selectedIdx, "enhance")}
-              >
-                Enhance
-              </FilterButton>
+              {(Object.keys(FILTER_LABELS) as Filter[]).map((f) => (
+                <FilterButton
+                  key={f}
+                  active={shots[selectedIdx].filter === f}
+                  onClick={() => setShotFilter(selectedIdx, f)}
+                >
+                  {FILTER_LABELS[f]}
+                </FilterButton>
+              ))}
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -374,7 +422,7 @@ function CropEditor({
           src={shot.dataUrl}
           alt="captured"
           className="w-full h-full object-contain"
-          style={shot.filter === "enhance" ? { filter: "contrast(1.15) saturate(1.1) brightness(1.05)" } : undefined}
+          style={FILTER_CSS[shot.filter] ? { filter: FILTER_CSS[shot.filter] } : undefined}
           draggable={false}
         />
 
@@ -516,9 +564,9 @@ async function renderShot(shot: Shot): Promise<Blob> {
   if (!ctx) throw new Error("Canvas unavailable");
   ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
 
-  if (shot.filter === "enhance") {
+  if (shot.filter !== "original") {
     const data = ctx.getImageData(0, 0, sw, sh);
-    enhanceInPlace(data);
+    applyFilter(data, shot.filter);
     ctx.putImageData(data, 0, 0);
   }
 
@@ -538,6 +586,46 @@ function loadImage(src: string): Promise<HTMLImageElement> {
     img.onerror = reject;
     img.src = src;
   });
+}
+
+function applyFilter(img: ImageData, filter: Filter) {
+  switch (filter) {
+    case "enhance":
+      enhanceInPlace(img);
+      return;
+    case "bw":
+      grayscaleInPlace(img);
+      return;
+    case "high-contrast":
+      enhanceInPlace(img);
+      contrastInPlace(img, 1.4);
+      return;
+    case "document":
+      grayscaleInPlace(img);
+      enhanceInPlace(img);
+      contrastInPlace(img, 1.5);
+      return;
+  }
+}
+
+function grayscaleInPlace(img: ImageData) {
+  const px = img.data;
+  for (let i = 0; i < px.length; i += 4) {
+    // Rec. 709 luma weights — closer to perceived brightness than equal-weight.
+    const v = 0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2];
+    px[i] = px[i + 1] = px[i + 2] = v;
+  }
+}
+
+function contrastInPlace(img: ImageData, amount: number) {
+  // Stretch around 128. amount=1.0 is identity, >1 increases contrast.
+  const px = img.data;
+  for (let i = 0; i < px.length; i += 4) {
+    for (let c = 0; c < 3; c++) {
+      const v = (px[i + c] - 128) * amount + 128;
+      px[i + c] = v < 0 ? 0 : v > 255 ? 255 : v;
+    }
+  }
 }
 
 // Auto-contrast (1st/99th percentile stretch) + light unsharp.

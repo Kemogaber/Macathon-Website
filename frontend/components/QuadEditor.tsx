@@ -23,7 +23,7 @@ interface Props {
   locked?: boolean;
 }
 
-const HANDLE_R = 9;
+const HANDLE_R = 13;
 const ROT_OFFSET = 36;          // pixel distance of rotation handle above top edge
 const STROKE = "#00d4ff";
 const STROKE_INACTIVE = "rgba(124,58,237,0.55)";
@@ -394,6 +394,9 @@ export default function QuadEditor({
             // Drag-to-pan is on whenever no zoom tool is selected.
             if (tool !== "none") return;
             if ((e.target as Element).tagName !== "IMG") return;
+            // On touch, let the overflow-auto frame scroll natively — it IS pan,
+            // and capturing the pointer here fights the browser's gesture handling.
+            if (e.pointerType === "touch") return;
             const frame = frameRef.current;
             if (!frame) return;
             (e.target as Element).setPointerCapture?.(e.pointerId);
@@ -479,6 +482,7 @@ export default function QuadEditor({
                             strokeWidth={2 / scale}
                             style={{
                               pointerEvents: "all",
+                              touchAction: "none",
                               cursor:
                                 edge === "top" || edge === "bottom"
                                   ? "ns-resize"
@@ -500,7 +504,7 @@ export default function QuadEditor({
                         fill={STROKE}
                         stroke="#0a0b0f"
                         strokeWidth={2 / scale}
-                        style={{ pointerEvents: "all", cursor: "grab" }}
+                        style={{ pointerEvents: "all", touchAction: "none", cursor: "grab" }}
                         onPointerDown={(e) => {
                           (e.target as Element).setPointerCapture?.(e.pointerId);
                           setDrag({ kind: "rotate", ri });
@@ -510,7 +514,7 @@ export default function QuadEditor({
                       {/* delete X badge */}
                       {onRemove && (
                         <g
-                          style={{ pointerEvents: "all", cursor: "pointer" }}
+                          style={{ pointerEvents: "all", touchAction: "none", cursor: "pointer" }}
                           onPointerDown={(e) => {
                             e.stopPropagation();
                             onRemove(ri);

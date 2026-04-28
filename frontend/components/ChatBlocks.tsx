@@ -53,13 +53,26 @@ export interface RecommendSpec {
   sites: RecommendSite[];
 }
 
+export interface CalendarEvent {
+  date: string; // YYYY-MM-DD
+  label: string;
+  color?: string;
+  time?: string;
+}
+
+export interface CalendarSpec {
+  title?: string;
+  events: CalendarEvent[];
+}
+
 type Segment =
   | { kind: "text"; text: string }
   | { kind: "chart"; spec: ChartSpec | null; raw: string }
   | { kind: "patch"; spec: PatchSpec | null; raw: string }
-  | { kind: "recommend"; spec: RecommendSpec | null; raw: string };
+  | { kind: "recommend"; spec: RecommendSpec | null; raw: string }
+  | { kind: "calendar"; spec: CalendarSpec | null; raw: string };
 
-const FENCE_RE = /```(chart|patch|recommend)\s*\n([\s\S]*?)```/g;
+const FENCE_RE = /```(chart|patch|recommend|calendar)\s*\n([\s\S]*?)```/g;
 
 export function parseSegments(content: string): Segment[] {
   const out: Segment[] = [];
@@ -67,9 +80,9 @@ export function parseSegments(content: string): Segment[] {
   for (const m of content.matchAll(FENCE_RE)) {
     const idx = m.index ?? 0;
     if (idx > last) out.push({ kind: "text", text: content.slice(last, idx) });
-    const tag = m[1] as "chart" | "patch" | "recommend";
+    const tag = m[1] as "chart" | "patch" | "recommend" | "calendar";
     const raw = m[2].trim();
-    let spec: ChartSpec | PatchSpec | RecommendSpec | null = null;
+    let spec: ChartSpec | PatchSpec | RecommendSpec | CalendarSpec | null = null;
     try {
       spec = JSON.parse(raw);
     } catch {
@@ -79,8 +92,10 @@ export function parseSegments(content: string): Segment[] {
       out.push({ kind: "chart", spec: spec as ChartSpec | null, raw });
     } else if (tag === "patch") {
       out.push({ kind: "patch", spec: spec as PatchSpec | null, raw });
-    } else {
+    } else if (tag === "recommend") {
       out.push({ kind: "recommend", spec: spec as RecommendSpec | null, raw });
+    } else {
+      out.push({ kind: "calendar", spec: spec as CalendarSpec | null, raw });
     }
     last = idx + m[0].length;
   }
@@ -477,6 +492,142 @@ export function MarkdownText({ text }: { text: string }) {
           </ListTag>
         );
       })}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Calendar renderer — month-grid for exam/assignment dates extracted from
+// tables. Spec carries a list of {date, label} events; we group them by
+// month and draw one mini-calendar per month with event chips on each day.
+// ---------------------------------------------------------------------------
+
+const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+function parseISODate(s: string): { y: number; m: number; d: number } | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return null;
+  const y = +m[1], mo = +m[2], d = +m[3];
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  return { y, m: mo, d };
+}
+
+export function CalendarBlock({ spec }: { spec: CalendarSpec | null }) {
+  if (!spec || !Array.isArray(spec.events) || spec.events.length === 0) {
+    return <BadBlock label="calendar" />;
+  }
+  // Group events by year-month.
+  const groups = new Map<string, { y: number; m: number; events: (CalendarEvent & { d: number })[] }>();
+  for (const ev of spec.events) {
+    const p = parseISODate(ev.date);
+    if (!p) continue;
+    const key = `${p.y}-${p.m}`;
+    let g = groups.get(key);
+    if (!g) {
+      g = { y: p.y, m: p.m, events: [] };
+      groups.set(key, g);
+    }
+    g.events.push({ ...ev, d: p.d });
+  }
+  if (groups.size === 0) return <BadBlock label="calendar" />;
+  const months = Array.from(groups.values()).sort(
+    (a, b) => a.y - b.y || a.m - b.m,
+  );
+
+  return (
+    <div className="my-2 rounded-lg border border-cyan/30 bg-[rgba(0,212,255,0.04)] p-2.5 text-xs">
+      {spec.title && (
+        <div className="font-mono text-cyan mb-2 px-1">{spec.title}</div>
+      )}
+      <div className="flex flex-col gap-3">
+        {months.map((g) => (
+          <MiniMonth key={`${g.y}-${g.m}`} year={g.y} month={g.m} events={g.events} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MiniMonth({
+  year,
+  month,
+  events,
+}: {
+  year: number;
+  month: number;
+  events: (CalendarEvent & { d: number })[];
+}) {
+  // Build day grid. JS getDay: Sun=0..Sat=6. We want Monday-first.
+  const firstDow = (new Date(year, month - 1, 1).getDay() + 6) % 7; // 0=Mon
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const cells: (number | null)[] = [];
+  for (let i = 0; i < firstDow; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  const byDay = new Map<number, (CalendarEvent & { d: number })[]>();
+  for (const ev of events) {
+    const arr = byDay.get(ev.d) ?? [];
+    arr.push(ev);
+    byDay.set(ev.d, arr);
+  }
+
+  return (
+    <div className="rounded-md border border-border bg-input p-2">
+      <div className="text-[11px] font-bold text-text mb-1.5">
+        {MONTH_NAMES[month - 1]} {year}
+      </div>
+      <div className="grid grid-cols-7 gap-0.5 text-[9px] font-mono text-muted-2 mb-1">
+        {DOW.map((d) => (
+          <div key={d} className="text-center">{d}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-0.5">
+        {cells.map((d, i) => {
+          if (d === null) return <div key={i} className="aspect-square" />;
+          const ev = byDay.get(d);
+          const has = ev && ev.length > 0;
+          return (
+            <div
+              key={i}
+              className={`aspect-square rounded-sm border text-[9px] p-0.5 flex flex-col overflow-hidden ${
+                has
+                  ? "border-cyan/60 bg-cyan/15 text-text"
+                  : "border-border/40 text-muted-2"
+              }`}
+              title={has ? ev!.map((e) => `${e.label}${e.time ? ` @ ${e.time}` : ""}`).join("\n") : undefined}
+            >
+              <div className="font-mono leading-none">{d}</div>
+              {has && (
+                <div className="mt-0.5 flex-1 min-h-0 flex flex-col gap-0.5 overflow-hidden">
+                  {ev!.slice(0, 2).map((e, ei) => (
+                    <div
+                      key={ei}
+                      className="truncate rounded-sm px-0.5 leading-tight"
+                      style={{
+                        background: e.color ?? "rgba(0,212,255,0.55)",
+                        color: "#0a0b0f",
+                        fontSize: 8,
+                      }}
+                    >
+                      {e.label}
+                    </div>
+                  ))}
+                  {ev!.length > 2 && (
+                    <div className="text-[8px] text-muted-2 leading-none">
+                      +{ev!.length - 2}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
