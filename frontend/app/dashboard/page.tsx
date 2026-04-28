@@ -35,13 +35,13 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-12">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
       <div className="flex items-end justify-between mb-8 flex-wrap gap-4">
         <div>
           <span className="inline-block px-3 py-1 rounded-full border border-cyan/20 bg-[rgba(0,212,255,0.1)] text-cyan text-xs font-mono mb-3">
             Health Dashboard
           </span>
-          <h1 className="text-4xl font-black text-text">System Status</h1>
+          <h1 className="text-3xl sm:text-4xl font-black text-text">System Status</h1>
         </div>
         <StatusPill healthy={healthy} />
       </div>

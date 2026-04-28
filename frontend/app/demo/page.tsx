@@ -469,20 +469,20 @@ export default function DemoPage() {
   ).length;
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-12">
+    <div className="max-w-6xl mx-auto px-3 sm:px-6 py-6 sm:py-12">
       <div className="flex justify-end mb-2">
         <BackendStatusPill />
       </div>
-      <div className="text-center mb-10">
-        <span className="inline-block px-3 py-1 rounded-full border border-cyan/20 bg-[rgba(0,212,255,0.1)] text-cyan text-xs font-mono mb-4">
+      <div className="text-center mb-6 sm:mb-10">
+        <span className="inline-block px-3 py-1 rounded-full border border-cyan/20 bg-[rgba(0,212,255,0.1)] text-cyan text-xs font-mono mb-3 sm:mb-4">
           Live Demo
         </span>
-        <h1 className="text-4xl font-black text-text mb-3">Table Extractor</h1>
+        <h1 className="text-2xl sm:text-4xl font-black text-text mb-3">Table Extractor</h1>
         <Stepper step={step} hasResults={tables.length > 0} />
       </div>
 
       {step === "upload" && (
-        <div className="glass rounded-2xl p-7 gradient-border max-w-3xl mx-auto">
+        <div className="glass rounded-2xl p-4 sm:p-7 gradient-border max-w-3xl mx-auto">
           <UploadZone files={files} onChange={setFiles} disabled={busy !== null} />
           {files.length > 0 && (
             <div className="mt-5 flex items-center justify-between gap-4 flex-wrap">
@@ -502,10 +502,10 @@ export default function DemoPage() {
       )}
 
       {step === "review" && job && ps && (
-        <div className="space-y-5">
+        <div className="space-y-4 sm:space-y-5">
           {/* page nav with scrubber */}
-          <div className="glass rounded-2xl p-4 flex flex-col gap-3">
-            <div className="flex items-center justify-center gap-3 flex-wrap">
+          <div className="glass rounded-2xl p-3 sm:p-4 flex flex-col gap-3">
+            <div className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap">
               <button
                 onClick={() => setCurrentPage((i: number) => Math.max(0, i - 1))}
                 disabled={currentPage === 0}
@@ -525,7 +525,7 @@ export default function DemoPage() {
                     if (e.key === "Enter") jumpToPageFromInput();
                   }}
                   onBlur={jumpToPageFromInput}
-                  className="w-16 text-center bg-overlay border border-border rounded-md px-1 py-0.5 font-mono text-text focus:outline-none focus:border-cyan"
+                  className="w-14 sm:w-16 text-center bg-overlay border border-border rounded-md px-1 py-0.5 font-mono text-text focus:outline-none focus:border-cyan"
                 />
                 / {job.pages.length}
               </span>
@@ -540,36 +540,38 @@ export default function DemoPage() {
               >
                 Next →
               </button>
+            </div>
+            <div className="flex items-center justify-center gap-2 flex-wrap">
               <PageStatusBadge state={ps} />
               <span className="text-xs text-muted font-mono">
                 {detectedCount} parsed · {recognizedCount} confirmed
               </span>
-              <span className="ml-auto flex items-center gap-2">
-                <AddMoreFilesButton
-                  disabled={busy !== null}
-                  onAdd={handleAddMoreFiles}
-                />
-                <button
-                  onClick={() => handleRotateCurrentPage(90)}
-                  disabled={busy !== null || ps.recognized}
-                  title="Rotate 90° clockwise"
-                  className="w-8 h-7 rounded-lg border border-border bg-overlay hover:bg-overlay/70 text-muted-2 hover:text-text text-sm flex items-center justify-center disabled:opacity-30"
-                >
-                  ↻
-                </button>
-                <button
-                  onClick={handleRemoveCurrentPage}
-                  disabled={busy !== null || job.pages.length <= 1}
-                  title={
-                    job.pages.length <= 1
-                      ? "Can't remove the last page"
-                      : `Remove page ${currentPage + 1}`
-                  }
-                  className="px-2.5 py-1 rounded-lg border border-red-400/40 bg-red-500/10 hover:bg-red-500/20 text-red-200 light:text-red-700 text-xs font-mono disabled:opacity-30"
-                >
-                  Remove page
-                </button>
-              </span>
+            </div>
+            <div className="flex items-center justify-center sm:justify-end gap-2 flex-wrap">
+              <AddMoreFilesButton
+                disabled={busy !== null}
+                onAdd={handleAddMoreFiles}
+              />
+              <button
+                onClick={() => handleRotateCurrentPage(90)}
+                disabled={busy !== null || ps.recognized}
+                title="Rotate 90° clockwise"
+                className="w-8 h-7 rounded-lg border border-border bg-overlay hover:bg-overlay/70 text-muted-2 hover:text-text text-sm flex items-center justify-center disabled:opacity-30"
+              >
+                ↻
+              </button>
+              <button
+                onClick={handleRemoveCurrentPage}
+                disabled={busy !== null || job.pages.length <= 1}
+                title={
+                  job.pages.length <= 1
+                    ? "Can't remove the last page"
+                    : `Remove page ${currentPage + 1}`
+                }
+                className="px-2.5 py-1 rounded-lg border border-red-400/40 bg-red-500/10 hover:bg-red-500/20 text-red-200 light:text-red-700 text-xs font-mono disabled:opacity-30"
+              >
+                Remove page
+              </button>
             </div>
             {job.pages.length > 1 && (
               <input
@@ -585,8 +587,8 @@ export default function DemoPage() {
           </div>
 
           {/* editor card — Step 1 detect controls + box pills + image */}
-          <div className="glass rounded-2xl p-5 space-y-3">
-            <div className="flex items-center justify-center gap-3 flex-wrap">
+          <div className="glass rounded-2xl p-3 sm:p-5 space-y-3">
+            <div className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap">
               <span className="text-xs uppercase tracking-wider text-muted-2">
                 Step 1 — Detect tables
               </span>
@@ -684,7 +686,7 @@ export default function DemoPage() {
           </div>
 
           {/* Step 2 — confirm */}
-          <div className="glass rounded-2xl p-4 flex items-center justify-center gap-3 flex-wrap">
+          <div className="glass rounded-2xl p-3 sm:p-4 flex items-center justify-center gap-2 sm:gap-3 flex-wrap">
             <span className="text-xs uppercase tracking-wider text-muted-2">
               Step 2 — Confirm (TSR + OCR)
             </span>
@@ -922,11 +924,11 @@ function Stepper({ step, hasResults }: { step: Step; hasResults: boolean }) {
   ];
   const active = step === "upload" ? 0 : hasResults ? 2 : 1;
   return (
-    <div className="flex items-center justify-center gap-3 mt-3 text-xs font-mono">
+    <div className="flex items-center justify-center gap-1.5 sm:gap-3 mt-3 text-[10px] sm:text-xs font-mono flex-wrap">
       {labels.map((l, i) => (
-        <div key={l.id} className="flex items-center gap-3">
+        <div key={l.id} className="flex items-center gap-1.5 sm:gap-3">
           <span
-            className={`px-3 py-1 rounded-full border ${
+            className={`px-2 sm:px-3 py-1 rounded-full border ${
               i <= active
                 ? "border-cyan/40 bg-[rgba(0,212,255,0.12)] text-cyan"
                 : "border-border text-muted"

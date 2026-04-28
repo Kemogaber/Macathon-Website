@@ -44,7 +44,7 @@ export default function EditableTable({ cells, onChange, showConfidence }: Props
                     <input
                       value={cell.text}
                       onChange={(e) => onChange(cell.row, cell.col, e.target.value)}
-                      className={`w-full min-w-32 bg-transparent px-2 py-1 outline-none focus:bg-cyan/10 ${
+                      className={`w-full min-w-20 sm:min-w-32 bg-transparent px-2 py-1 outline-none focus:bg-cyan/10 ${
                         isHeader ? "font-semibold" : ""
                       }`}
                     />

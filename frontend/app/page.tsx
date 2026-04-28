@@ -27,7 +27,7 @@ export default function HomePage() {
   return (
     <div className="grid-bg min-h-screen">
       {/* Hero */}
-      <section className="relative max-w-6xl mx-auto px-6 pt-24 pb-20 text-center">
+      <section className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-12 sm:pt-24 pb-12 sm:pb-20 text-center">
         <div
           aria-hidden
           className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full opacity-20 blur-3xl pointer-events-none"
@@ -44,14 +44,14 @@ export default function HomePage() {
           AI-Powered · Real-time Extraction
         </span>
 
-        <h1 className="text-5xl md:text-7xl font-black tracking-tight mb-6 leading-tight">
+        <h1 className="text-4xl sm:text-5xl md:text-7xl font-black tracking-tight mb-6 leading-tight">
           Extract Tables{" "}
           <span className="gradient-text glow-cyan-text">Instantly</span>
           <br />
           from Any Image
         </h1>
 
-        <p className="text-muted-2 text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
+        <p className="text-muted-2 text-base sm:text-lg md:text-xl max-w-2xl mx-auto mb-8 sm:mb-10 leading-relaxed">
           Upload a photo of any document, spreadsheet, or form. Our AI pipeline —
           table detection, structure recognition, and OCR — returns a clean,
           downloadable table in seconds.
@@ -77,19 +77,19 @@ export default function HomePage() {
 
       {/* Stats strip */}
       <section className="border-y border-border bg-white/[0.015]">
-        <div className="max-w-6xl mx-auto px-6 py-8 grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 text-center">
           {stats.map((s) => (
             <div key={s.label}>
-              <p className="text-xl font-bold text-cyan font-mono">{s.value}</p>
-              <p className="text-muted text-sm mt-1">{s.label}</p>
+              <p className="text-sm sm:text-xl font-bold text-cyan font-mono break-words">{s.value}</p>
+              <p className="text-muted text-xs sm:text-sm mt-1">{s.label}</p>
             </div>
           ))}
         </div>
       </section>
 
       {/* Features */}
-      <section className="max-w-6xl mx-auto px-6 py-24">
-        <div className="text-center mb-14">
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-24">
+        <div className="text-center mb-10 sm:mb-14">
           <h2 className="text-3xl md:text-4xl font-bold text-text mb-4">
             Three-stage AI Pipeline
           </h2>
@@ -113,8 +113,8 @@ export default function HomePage() {
       </section>
 
       {/* CTA */}
-      <section className="max-w-6xl mx-auto px-6 pb-24">
-        <div className="glass rounded-3xl gradient-border p-10 md:p-16 text-center relative overflow-hidden">
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-14 sm:pb-24">
+        <div className="glass rounded-3xl gradient-border p-6 sm:p-10 md:p-16 text-center relative overflow-hidden">
           <div
             aria-hidden
             className="absolute inset-0 opacity-10 pointer-events-none"

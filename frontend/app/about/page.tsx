@@ -76,13 +76,13 @@ function MemberAvatar({ member }: { member: (typeof team)[number] }) {
 
 export default function AboutPage() {
   return (
-    <div className="max-w-5xl mx-auto px-6 py-16">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
       {/* Header */}
-      <div className="text-center mb-16">
+      <div className="text-center mb-10 sm:mb-16">
         <span className="inline-block px-3 py-1 rounded-full border border-cyan/20 bg-[rgba(0,212,255,0.1)] text-cyan text-xs font-mono mb-4">
           The Parsers · Macathon 2026
         </span>
-        <h1 className="text-4xl md:text-5xl font-black text-text mb-4">
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-text mb-4">
           About the Project
         </h1>
         <p className="text-muted-2 max-w-2xl mx-auto leading-relaxed">

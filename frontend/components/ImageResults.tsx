@@ -205,8 +205,8 @@ export default function ImageResults({ jobId, tables }: Props) {
   }
 
   return (
-    <div className="glass rounded-2xl p-6 gradient-border">
-      <div className="flex items-center justify-center gap-3 mb-4 flex-wrap">
+    <div className="glass rounded-2xl p-3 sm:p-6 gradient-border">
+      <div className="flex items-center justify-center gap-2 sm:gap-3 mb-4 flex-wrap">
         <button
           onClick={() => setActiveImg((i) => Math.max(0, i - 1))}
           disabled={safeImg === 0}
@@ -263,15 +263,15 @@ export default function ImageResults({ jobId, tables }: Props) {
           <img
             src={tableImageUrl(jobId, t.index)}
             alt={`Table ${t.index}`}
-            className="rounded-lg border border-border max-h-[28rem] w-full object-contain bg-input"
+            className="rounded-lg border border-border max-h-[18rem] sm:max-h-[28rem] w-full object-contain bg-input"
           />
         </div>
         <div className="w-full">
-          <div className="flex items-center justify-between mb-2 gap-2">
-            <p className="text-xs uppercase tracking-wider text-muted text-center flex-1">
+          <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+            <p className="text-xs uppercase tracking-wider text-muted flex-1 min-w-0">
               Recognized data
               <span className="ml-2 text-muted-2 normal-case">
-                · click cells to edit · {t.cell_count} cells
+                · tap cells to edit · {t.cell_count} cells
               </span>
             </p>
             <label className="flex items-center gap-1.5 text-xs text-muted-2 font-mono cursor-pointer">

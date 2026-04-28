@@ -225,15 +225,25 @@ export default function ChatWidget({
 
       {open && (
         <div
-          style={{
-            // Anchor panel's bottom-right to icon's top-left (with a small gap).
-            right: iconPos.right + ICON_SIZE + 8,
-            bottom: iconPos.bottom + ICON_SIZE + 8,
-            width: 380,
-            height: 560,
-            maxWidth: `calc(100vw - ${iconPos.right + ICON_SIZE + 24}px)`,
-            maxHeight: `calc(100vh - ${iconPos.bottom + ICON_SIZE + 24}px)`,
-          }}
+          style={
+            typeof window !== "undefined" && window.innerWidth < 640
+              ? {
+                  left: 8,
+                  right: 8,
+                  bottom: iconPos.bottom + ICON_SIZE + 8,
+                  height: `calc(100vh - ${iconPos.bottom + ICON_SIZE + 24}px)`,
+                  maxHeight: `calc(100vh - ${iconPos.bottom + ICON_SIZE + 24}px)`,
+                }
+              : {
+                  // Anchor panel's bottom-right to icon's top-left (with a small gap).
+                  right: iconPos.right + ICON_SIZE + 8,
+                  bottom: iconPos.bottom + ICON_SIZE + 8,
+                  width: 380,
+                  height: 560,
+                  maxWidth: `calc(100vw - ${iconPos.right + ICON_SIZE + 24}px)`,
+                  maxHeight: `calc(100vh - ${iconPos.bottom + ICON_SIZE + 24}px)`,
+                }
+          }
           className="fixed z-40 bg-background rounded-2xl border border-border shadow-2xl flex flex-col overflow-hidden"
         >
           <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface-3">
