@@ -183,8 +183,8 @@ export default function CameraCapture({ open, onClose, onCapture }: Props) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex flex-col">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 text-white">
+    <div className="fixed inset-0 z-50 bg-text/90 backdrop-blur-sm flex flex-col">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-background/20 text-background">
         <div className="font-bold">
           {stage === "live" ? "Camera" : `Review (${shots.length} shot${shots.length === 1 ? "" : "s"})`}
         </div>
@@ -224,21 +224,21 @@ export default function CameraCapture({ open, onClose, onCapture }: Props) {
                   })
                   .catch(() => {});
               }}
-              className="max-w-full max-h-[70vh] rounded-xl border border-white/10 bg-black cursor-crosshair"
+              className="max-w-full max-h-[70vh] rounded-xl border border-background/20 bg-text cursor-crosshair"
             />
           )}
           <div className="flex items-center gap-3 flex-wrap justify-center">
             <button
               onClick={capture}
               disabled={!!streamErr}
-              className="px-6 py-3 rounded-full bg-cyan text-black font-bold disabled:opacity-40"
+              className="px-6 py-3 rounded-full bg-cyan text-background font-bold disabled:opacity-40"
             >
               Capture {shots.length > 0 ? `(${shots.length})` : ""}
             </button>
             <button
               onClick={reviewShots}
               disabled={shots.length === 0}
-              className="px-5 py-3 rounded-full border border-white/30 text-white hover:bg-white/10 disabled:opacity-30"
+              className="px-5 py-3 rounded-full border border-background/30 text-background hover:bg-background/10 disabled:opacity-30"
             >
               Review →
             </button>
@@ -251,7 +251,7 @@ export default function CameraCapture({ open, onClose, onCapture }: Props) {
                   key={s.id}
                   src={s.dataUrl}
                   alt={`shot ${i + 1}`}
-                  className="h-16 w-16 object-cover rounded-md border border-white/20"
+                  className="h-16 w-16 object-cover rounded-md border border-background/20"
                 />
               ))}
             </div>
@@ -267,7 +267,7 @@ export default function CameraCapture({ open, onClose, onCapture }: Props) {
                 key={s.id}
                 onClick={() => setSelectedIdx(i)}
                 className={`relative shrink-0 rounded-md border-2 overflow-hidden ${
-                  i === selectedIdx ? "border-cyan" : "border-white/20"
+                  i === selectedIdx ? "border-cyan" : "border-background/20"
                 }`}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -278,7 +278,7 @@ export default function CameraCapture({ open, onClose, onCapture }: Props) {
                     deleteShot(i);
                   }}
                   aria-label={`Remove shot ${i + 1}`}
-                  className="absolute top-0 right-0 w-5 h-5 bg-black/70 text-red-300 text-xs hover:bg-red-500/40"
+                  className="absolute top-0 right-0 w-5 h-5 bg-text/70 text-red-300 text-xs hover:bg-red-500/40"
                 >
                   ×
                 </button>
@@ -295,7 +295,7 @@ export default function CameraCapture({ open, onClose, onCapture }: Props) {
 
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-white/60 text-xs font-mono">Filter:</span>
+              <span className="text-background/60 text-xs font-mono">Filter:</span>
               {(Object.keys(FILTER_LABELS) as Filter[]).map((f) => (
                 <FilterButton
                   key={f}
@@ -309,13 +309,13 @@ export default function CameraCapture({ open, onClose, onCapture }: Props) {
             <div className="flex items-center gap-2">
               <button
                 onClick={backToLive}
-                className="px-4 py-2 rounded-lg border border-white/30 text-white hover:bg-white/10 text-sm"
+                className="px-4 py-2 rounded-lg border border-background/30 text-background hover:bg-background/10 text-sm"
               >
                 ← Take more
               </button>
               <button
                 onClick={finish}
-                className="px-5 py-2 rounded-lg bg-cyan text-black font-bold text-sm"
+                className="px-5 py-2 rounded-lg bg-cyan text-background font-bold text-sm"
               >
                 Use {shots.length} shot{shots.length === 1 ? "" : "s"}
               </button>
@@ -341,8 +341,8 @@ function FilterButton({
       onClick={onClick}
       className={`px-3 py-1 rounded-md text-xs font-mono border ${
         active
-          ? "bg-cyan text-black border-cyan"
-          : "bg-transparent text-white/80 border-white/20 hover:bg-white/10"
+          ? "bg-cyan text-background border-cyan"
+          : "bg-transparent text-background/80 border-background/20 hover:bg-background/10"
       }`}
     >
       {children}
@@ -429,7 +429,7 @@ function CropEditor({
         {/* darken outside crop */}
         <div className="absolute inset-0 pointer-events-none">
           <div
-            className="absolute inset-0 bg-black/55"
+            className="absolute inset-0 bg-text/55"
             style={{
               clipPath: `polygon(
                 0% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 0%,
@@ -478,7 +478,7 @@ function Handle({
   onDown: (h: Handle, e: React.PointerEvent) => void;
 }) {
   const style: React.CSSProperties = { touchAction: "none" };
-  let cls = "absolute w-3 h-3 bg-cyan border border-white shadow rounded-sm touch-none ";
+  let cls = "absolute w-3 h-3 bg-cyan border border-background shadow rounded-sm touch-none ";
   switch (pos) {
     case "tl":
       cls += "-left-1.5 -top-1.5 cursor-nwse-resize";

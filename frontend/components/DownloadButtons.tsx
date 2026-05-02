@@ -20,7 +20,7 @@ export default function DownloadButtons({ html, csv }: Props) {
     <div className="flex gap-3 flex-wrap">
       <button
         onClick={() => download(html, "extracted_table.html", "text/html")}
-        className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-cyan text-background font-semibold text-sm hover:bg-cyan-300 transition-colors glow-cyan"
+        className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-cyan text-background font-semibold text-sm hover:bg-cyan/80 transition-colors glow-cyan"
       >
         <span>↓</span> Download HTML
       </button>

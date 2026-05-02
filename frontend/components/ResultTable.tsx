@@ -64,15 +64,15 @@ export default function ResultTable({ html, csv, tableCount, processingMs }: Pro
         .extracted-table th,
         .extracted-table td {
           padding: 8px 12px;
-          border: 1px solid rgba(255,255,255,0.1);
+          border: 1px solid var(--border);
           text-align: left;
         }
         .extracted-table thead tr {
-          background: rgba(0, 212, 255, 0.1);
-          color: #00d4ff;
+          background: var(--cyan-dim);
+          color: var(--cyan);
         }
         .extracted-table tbody tr:hover {
-          background: rgba(255, 255, 255, 0.03);
+          background: var(--overlay);
         }
       `}</style>
     </div>

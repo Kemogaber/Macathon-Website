@@ -64,35 +64,35 @@ const steps = [
     title: "Upload Your Image",
     desc: "Drag and drop or select any image containing a table — photos, scans, screenshots, or PDF exports. Supports JPEG, PNG, and WebP up to 20 MB.",
     Icon: UploadIcon,
-    color: "#00d4ff",
+    color: "#cf5f49",
   },
   {
     number: "02",
     title: "Table Detection",
     desc: "A deep learning model scans the image and draws bounding boxes around every table region, even when tables overlap other content or have irregular borders.",
     Icon: DetectIcon,
-    color: "#7c3aed",
+    color: "#7f8e78",
   },
   {
     number: "03",
     title: "Structure Recognition",
     desc: "A second model parses the detected region to identify rows, columns, merged cells, and header rows — reconstructing the full table grid.",
     Icon: StructureIcon,
-    color: "#00d4ff",
+    color: "#cf5f49",
   },
   {
     number: "04",
     title: "OCR Extraction",
     desc: "Optical Character Recognition reads the text inside each individual cell, handling mixed fonts, numbers, special characters, and handwriting.",
     Icon: OcrIcon,
-    color: "#7c3aed",
+    color: "#7f8e78",
   },
   {
     number: "05",
     title: "Download Results",
     desc: "The structured data is formatted as clean HTML (preserving headers and styles) and CSV (for spreadsheet or database import). Both download instantly.",
     Icon: DownloadIcon,
-    color: "#00d4ff",
+    color: "#cf5f49",
   },
 ];
 
@@ -100,7 +100,7 @@ export default function HowItWorksPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
       <div className="text-center mb-10 sm:mb-16">
-        <span className="inline-block px-3 py-1 rounded-full border border-cyan/20 bg-[rgba(0,212,255,0.1)] text-cyan text-xs font-mono mb-4">
+        <span className="inline-block px-3 py-1 rounded-full border border-cyan/20 bg-cyan-dim text-cyan text-xs font-mono mb-4">
           Pipeline
         </span>
         <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-text mb-4">How It Works</h1>
@@ -132,7 +132,7 @@ export default function HowItWorksPage() {
                   className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-mono font-bold"
                   style={{
                     background: `${color}`,
-                    color: "#0a0b0f",
+                    color: "#f7f5ef",
                     boxShadow: `0 0 12px ${color}80`,
                   }}
                 >
@@ -142,7 +142,7 @@ export default function HowItWorksPage() {
 
               {/* Content */}
               <div
-                className="glass rounded-2xl p-6 flex-1 gradient-border transition-all duration-300 group-hover:bg-white/4"
+                className="glass rounded-2xl p-6 flex-1 gradient-border transition-all duration-300 group-hover:bg-overlay"
                 style={{ borderColor: `${color}20` }}
               >
                 <div className="flex items-center gap-3 mb-2">
@@ -160,7 +160,7 @@ export default function HowItWorksPage() {
       <div className="mt-16 text-center">
         <Link
           href="/demo"
-          className="inline-block px-10 py-4 rounded-xl bg-cyan text-background font-bold hover:bg-cyan-300 transition-colors glow-cyan"
+          className="inline-block px-10 py-4 rounded-xl bg-cyan text-background font-bold hover:bg-cyan/80 transition-colors glow-cyan"
         >
           Try It Yourself →
         </Link>

@@ -474,7 +474,7 @@ export default function DemoPage() {
         <BackendStatusPill />
       </div>
       <div className="text-center mb-6 sm:mb-10">
-        <span className="inline-block px-3 py-1 rounded-full border border-cyan/20 bg-[rgba(0,212,255,0.1)] text-cyan text-xs font-mono mb-3 sm:mb-4">
+        <span className="inline-block px-3 py-1 rounded-full border border-cyan/20 bg-cyan-dim text-cyan text-xs font-mono mb-3 sm:mb-4">
           Live Demo
         </span>
         <h1 className="text-2xl sm:text-4xl font-black text-text mb-3">Table Extractor</h1>
@@ -492,7 +492,7 @@ export default function DemoPage() {
               <button
                 onClick={handleUpload}
                 disabled={busy !== null}
-                className="px-6 py-2.5 rounded-xl bg-cyan text-background font-bold text-sm hover:bg-cyan-300 transition-colors glow-cyan disabled:opacity-50"
+                className="px-6 py-2.5 rounded-xl bg-cyan text-background font-bold text-sm hover:bg-cyan/80 transition-colors glow-cyan disabled:opacity-50"
               >
                 {busy === "upload" ? "Uploading…" : `Upload ${files.length} →`}
               </button>
@@ -509,7 +509,7 @@ export default function DemoPage() {
               <button
                 onClick={() => setCurrentPage((i: number) => Math.max(0, i - 1))}
                 disabled={currentPage === 0}
-                className="px-3 py-1.5 rounded-lg border border-cyan/30 bg-[rgba(0,212,255,0.06)] hover:bg-[rgba(0,212,255,0.14)] hover:border-cyan disabled:opacity-30 text-sm text-cyan"
+                className="px-3 py-1.5 rounded-lg border border-cyan/30 bg-cyan/10 hover:bg-cyan/20 hover:border-cyan disabled:opacity-30 text-sm text-cyan"
               >
                 ← Prev
               </button>
@@ -536,7 +536,7 @@ export default function DemoPage() {
                   )
                 }
                 disabled={currentPage === job.pages.length - 1}
-                className="px-3 py-1.5 rounded-lg border border-cyan/30 bg-[rgba(0,212,255,0.06)] hover:bg-[rgba(0,212,255,0.14)] hover:border-cyan disabled:opacity-30 text-sm text-cyan"
+                className="px-3 py-1.5 rounded-lg border border-cyan/30 bg-cyan/10 hover:bg-cyan/20 hover:border-cyan disabled:opacity-30 text-sm text-cyan"
               >
                 Next →
               </button>
@@ -595,7 +595,7 @@ export default function DemoPage() {
               <button
                 onClick={() => runDetection("one")}
                 disabled={busy !== null || ps.detected || ps.recognized}
-                className="px-4 py-2 rounded-lg bg-sky-500/15 border border-sky-400/40 hover:bg-sky-500/25 text-sky-100 light:text-sky-700 text-sm font-bold disabled:opacity-40"
+                className="px-4 py-2 rounded-lg bg-cyan-dim border border-cyan/40 hover:bg-cyan/20 text-cyan text-sm font-bold disabled:opacity-40"
                 title={
                   ps.detected
                     ? "Already parsed — adjust boxes or click Confirm"
@@ -611,7 +611,7 @@ export default function DemoPage() {
               <button
                 onClick={() => runDetection("all")}
                 disabled={busy !== null || undetectedCount === 0}
-                className="px-4 py-2 rounded-lg bg-indigo-500/15 border border-indigo-400/40 hover:bg-indigo-500/25 text-indigo-100 light:text-indigo-700 text-sm font-bold disabled:opacity-40"
+                className="px-4 py-2 rounded-lg bg-purple-dim border border-purple/40 hover:bg-purple/20 text-purple text-sm font-bold disabled:opacity-40"
                 title={
                   undetectedCount === 0 ? "All images already parsed" : ""
                 }
@@ -623,7 +623,7 @@ export default function DemoPage() {
               <button
                 onClick={() => addRect(currentPage)}
                 disabled={ps.recognized}
-                className="px-3 py-1.5 rounded-lg border border-emerald-400/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-200 light:text-emerald-700 text-xs disabled:opacity-40"
+                className="px-3 py-1.5 rounded-lg border border-purple/40 bg-purple-dim hover:bg-purple/20 text-purple text-xs disabled:opacity-40"
               >
                 + Add box
               </button>
@@ -644,7 +644,7 @@ export default function DemoPage() {
                     key={ri}
                     className={`inline-flex items-center gap-1 rounded-lg text-xs font-mono border transition-colors ${
                       ri === ps.activeRect
-                        ? "border-cyan bg-[rgba(0,212,255,0.12)] text-cyan"
+                        ? "border-cyan bg-cyan/10 text-cyan"
                         : "border-border text-muted-2"
                     }`}
                   >
@@ -658,7 +658,7 @@ export default function DemoPage() {
                       <button
                         onClick={() => removeRect(currentPage, ri)}
                         title="Remove this region"
-                        className="w-5 h-5 mr-1 rounded-md flex items-center justify-center text-red-400 hover:bg-red-500/20 hover:text-red-300"
+                        className="w-5 h-5 mr-1 rounded-md flex items-center justify-center text-red-700 dark:text-red-300 hover:bg-red-500/20"
                       >
                         ✕
                       </button>
@@ -698,14 +698,14 @@ export default function DemoPage() {
                 ps.recognized ||
                 ps.rects.length === 0
               }
-              className="px-4 py-2 rounded-lg bg-cyan text-background font-bold text-sm hover:bg-cyan-300 transition-colors glow-cyan disabled:opacity-40"
+              className="px-4 py-2 rounded-lg bg-cyan text-background font-bold text-sm hover:bg-cyan/80 transition-colors glow-cyan disabled:opacity-40"
             >
               {busy === "confirm-one" ? "Confirming…" : "Confirm this image"}
             </button>
             <button
               onClick={() => runConfirm("all")}
               disabled={busy !== null || confirmableCount === 0}
-              className="px-4 py-2 rounded-lg bg-fuchsia-500/15 border border-fuchsia-400/40 hover:bg-fuchsia-500/25 text-fuchsia-100 light:text-fuchsia-700 text-sm font-bold disabled:opacity-40"
+              className="px-4 py-2 rounded-lg bg-purple-dim border border-purple/40 hover:bg-purple/20 text-purple text-sm font-bold disabled:opacity-40"
             >
               {busy === "confirm-all"
                 ? "Confirming all…"
@@ -751,7 +751,7 @@ export default function DemoPage() {
 
       {step === "error" && (
         <div className="glass rounded-2xl p-6 border border-red-500/20 bg-red-500/5 max-w-xl mx-auto">
-          <p className="text-red-400 font-medium">⚠ Something went wrong</p>
+          <p className="text-red-700 dark:text-red-300 font-medium">⚠ Something went wrong</p>
           <p className="text-muted-2 text-sm mt-1">{errorMsg}</p>
           <button
             onClick={reset}
@@ -789,7 +789,7 @@ function GlobalDownloadMenu({ jobId }: { jobId: string }) {
     <div className="relative inline-block" ref={ref}>
       <button
         onClick={() => setOpen((o) => !o)}
-        className="px-4 py-2 rounded-xl bg-emerald-500/15 border border-emerald-400/40 hover:bg-emerald-500/25 text-emerald-200 light:text-emerald-700 text-sm font-bold"
+        className="px-4 py-2 rounded-xl bg-purple-dim border border-purple/40 hover:bg-purple/20 text-purple text-sm font-bold"
       >
         Download ▾
       </button>
@@ -846,14 +846,14 @@ function GlobalDownloadMenu({ jobId }: { jobId: string }) {
 function PageStatusBadge({ state }: { state: PerPageState }) {
   if (state.recognized) {
     return (
-      <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-xs font-mono">
+      <span className="px-2 py-0.5 rounded-full bg-purple-dim text-purple border border-purple/30 text-xs font-mono">
         ✓ Confirmed
       </span>
     );
   }
   if (state.detected) {
     return (
-      <span className="px-2 py-0.5 rounded-full bg-[rgba(0,212,255,0.12)] text-cyan border border-cyan/30 text-xs font-mono">
+      <span className="px-2 py-0.5 rounded-full bg-cyan/10 text-cyan border border-cyan/30 text-xs font-mono">
         ● Parsed
       </span>
     );
@@ -930,7 +930,7 @@ function Stepper({ step, hasResults }: { step: Step; hasResults: boolean }) {
           <span
             className={`px-2 sm:px-3 py-1 rounded-full border ${
               i <= active
-                ? "border-cyan/40 bg-[rgba(0,212,255,0.12)] text-cyan"
+                ? "border-cyan/40 bg-cyan/10 text-cyan"
                 : "border-border text-muted"
             }`}
           >

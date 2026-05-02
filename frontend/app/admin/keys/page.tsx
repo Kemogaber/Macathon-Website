@@ -133,14 +133,14 @@ export default function AdminKeysPage() {
             className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm font-mono text-text outline-none focus:border-cyan/50"
           />
           {error && (
-            <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
+            <p className="text-xs text-red-700 dark:text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
               {error}
             </p>
           )}
           <button
             type="submit"
             disabled={!adminKey.trim() || loading}
-            className="w-full px-4 py-2 rounded-xl bg-cyan text-background font-bold text-sm hover:bg-cyan-300 transition-colors glow-cyan disabled:opacity-50"
+            className="w-full px-4 py-2 rounded-xl bg-cyan text-background font-bold text-sm hover:bg-cyan/80 transition-colors glow-cyan disabled:opacity-50"
           >
             {loading ? "Checking…" : "Sign in"}
           </button>
@@ -215,14 +215,14 @@ export default function AdminKeysPage() {
         <button
           type="submit"
           disabled={!newName.trim() || creating}
-          className="px-5 py-2 rounded-xl bg-cyan text-background font-bold text-sm hover:bg-cyan-300 transition-colors glow-cyan disabled:opacity-50"
+          className="px-5 py-2 rounded-xl bg-cyan text-background font-bold text-sm hover:bg-cyan/80 transition-colors glow-cyan disabled:opacity-50"
         >
           {creating ? "Creating…" : "Create key"}
         </button>
       </form>
 
       {error && (
-        <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
+        <p className="text-xs text-red-700 dark:text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
           {error}
         </p>
       )}

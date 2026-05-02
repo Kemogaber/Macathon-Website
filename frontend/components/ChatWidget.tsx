@@ -337,7 +337,7 @@ export default function ChatWidget({
                 <button
                   onClick={send}
                   disabled={!input.trim()}
-                  className="px-3 py-2 rounded-lg bg-cyan text-black text-xs font-bold disabled:opacity-40"
+                  className="px-3 py-2 rounded-lg bg-cyan text-background text-xs font-bold disabled:opacity-40"
                 >
                   Send
                 </button>
@@ -350,7 +350,7 @@ export default function ChatWidget({
       <button
         onPointerDown={onIconPointerDown}
         style={{ right: iconPos.right, bottom: iconPos.bottom }}
-        className="fixed z-50 w-14 h-14 rounded-full bg-cyan text-black shadow-xl hover:scale-105 transition-transform flex items-center justify-center text-2xl font-bold cursor-grab active:cursor-grabbing select-none touch-none"
+        className="fixed z-50 w-14 h-14 rounded-full bg-cyan text-background shadow-xl hover:scale-105 transition-transform flex items-center justify-center text-2xl font-bold cursor-grab active:cursor-grabbing select-none touch-none"
         aria-label={open ? "Close assistant" : "Open assistant"}
         title="Click to toggle · drag to move"
       >
@@ -396,7 +396,7 @@ function Bubble({
       <div
         className={`max-w-[85%] rounded-2xl px-3 py-2 text-xs whitespace-pre-wrap break-words ${
           isUser
-            ? "bg-cyan text-black"
+            ? "bg-cyan text-background"
             : "bg-overlay text-text border border-border"
         }`}
       >

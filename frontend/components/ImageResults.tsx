@@ -213,7 +213,7 @@ export default function ImageResults({ jobId, tables }: Props) {
         <button
           onClick={() => setActiveImg((i) => Math.max(0, i - 1))}
           disabled={safeImg === 0}
-          className="px-3 py-1.5 rounded-lg border border-cyan/30 bg-[rgba(0,212,255,0.06)] hover:bg-[rgba(0,212,255,0.14)] hover:border-cyan disabled:opacity-30 text-sm text-cyan"
+          className="px-3 py-1.5 rounded-lg border border-cyan/30 bg-cyan/10 hover:bg-cyan/20 hover:border-cyan disabled:opacity-30 text-sm text-cyan"
         >
           ← Prev image
         </button>
@@ -226,7 +226,7 @@ export default function ImageResults({ jobId, tables }: Props) {
         <button
           onClick={() => setActiveImg((i) => Math.min(groups.length - 1, i + 1))}
           disabled={safeImg === groups.length - 1}
-          className="px-3 py-1.5 rounded-lg border border-cyan/30 bg-[rgba(0,212,255,0.06)] hover:bg-[rgba(0,212,255,0.14)] hover:border-cyan disabled:opacity-30 text-sm text-cyan"
+          className="px-3 py-1.5 rounded-lg border border-cyan/30 bg-cyan/10 hover:bg-cyan/20 hover:border-cyan disabled:opacity-30 text-sm text-cyan"
         >
           Next image →
         </button>
@@ -238,17 +238,17 @@ export default function ImageResults({ jobId, tables }: Props) {
           <button
             onClick={() => setActiveTable((i) => Math.max(0, i - 1))}
             disabled={safeTable === 0}
-            className="px-3 py-1 rounded-md border border-purple-400/40 bg-purple-500/10 hover:bg-purple-500/20 disabled:opacity-30 text-xs text-purple-200 light:text-purple-700 font-mono"
+            className="px-3 py-1 rounded-md border border-purple/40 bg-purple-dim hover:bg-purple/20 disabled:opacity-30 text-xs text-purple font-mono"
           >
             ← Prev table
           </button>
-          <span className="font-mono text-xs text-purple-200 light:text-purple-700 text-center">
+          <span className="font-mono text-xs text-purple text-center">
             Table {safeTable + 1} / {tableCount}
           </span>
           <button
             onClick={() => setActiveTable((i) => Math.min(tableCount - 1, i + 1))}
             disabled={safeTable === tableCount - 1}
-            className="px-3 py-1 rounded-md border border-purple-400/40 bg-purple-500/10 hover:bg-purple-500/20 disabled:opacity-30 text-xs text-purple-200 light:text-purple-700 font-mono"
+            className="px-3 py-1 rounded-md border border-purple/40 bg-purple-dim hover:bg-purple/20 disabled:opacity-30 text-xs text-purple font-mono"
           >
             Next table →
           </button>
@@ -347,14 +347,14 @@ export default function ImageResults({ jobId, tables }: Props) {
       <div className="flex items-center justify-end gap-2 mt-4 flex-wrap">
         <button
           onClick={downloadEditedCsv}
-          className="px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-400/40 hover:bg-emerald-500/25 text-xs font-mono text-emerald-200 light:text-emerald-700"
+          className="px-3 py-1.5 rounded-lg bg-purple-dim border border-purple/40 hover:bg-purple/20 text-xs font-mono text-purple"
           title="Download this table as CSV (with your edits)"
         >
           Download CSV
         </button>
         <button
           onClick={downloadHtml}
-          className="px-3 py-1.5 rounded-lg bg-sky-500/15 border border-sky-400/40 hover:bg-sky-500/25 text-xs font-mono text-sky-200 light:text-sky-700"
+          className="px-3 py-1.5 rounded-lg bg-purple-dim border border-purple/40 hover:bg-purple/20 text-xs font-mono text-purple"
           title="Download this table as a standalone HTML file"
         >
           Download HTML
@@ -414,7 +414,7 @@ function CsvDownloadMenu({
         onClick={() =>
           downloadString(csvFor(group.tables[0]), `table_${group.tables[0].index}.csv`)
         }
-        className="px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-400/40 hover:bg-emerald-500/25 text-xs font-mono text-emerald-200 light:text-emerald-700"
+        className="px-3 py-1.5 rounded-lg bg-purple-dim border border-purple/40 hover:bg-purple/20 text-xs font-mono text-purple"
       >
         Download CSV
       </button>
@@ -425,7 +425,7 @@ function CsvDownloadMenu({
     <div className="relative inline-block" ref={ref}>
       <button
         onClick={() => setOpen((o) => !o)}
-        className="px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-400/40 hover:bg-emerald-500/25 text-xs font-mono text-emerald-200 light:text-emerald-700"
+        className="px-3 py-1.5 rounded-lg bg-purple-dim border border-purple/40 hover:bg-purple/20 text-xs font-mono text-purple"
       >
         Download CSV ▾
       </button>
@@ -479,7 +479,7 @@ function ConfidenceSummary({ table }: { table: TableData }) {
   return (
     <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
       {userDrawn && (
-        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-purple-400/40 bg-purple-500/10 text-xs font-mono text-purple-200 light:text-purple-700">
+        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-purple/40 bg-purple-dim text-xs font-mono text-purple">
           User-drawn box
         </span>
       )}
@@ -498,7 +498,7 @@ function ConfidenceBadge({ label, value }: { label: string; value: number }) {
   const pct = Math.round(value * 100);
   const tone =
     value >= 0.85
-      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300 light:text-emerald-700"
+      ? "border-purple/40 bg-purple-dim text-purple"
       : value >= 0.6
         ? "border-yellow-500/40 bg-yellow-500/10 text-yellow-300 light:text-yellow-700"
         : "border-red-500/40 bg-red-500/10 text-red-300 light:text-red-700";

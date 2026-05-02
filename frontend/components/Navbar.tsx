@@ -38,7 +38,7 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
       <nav className="max-w-6xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between gap-2">
         <Link href="/" className="flex items-center gap-2 group shrink-0">
-          <span className="text-xl font-bold gradient-text">The Parsers</span>
+          <span className="text-xl font-bold gradient-text">ParseLab</span>
           <span className="text-xs px-2 py-0.5 rounded-full bg-cyan-dim text-cyan border border-cyan/20 font-mono">
             AI
           </span>
@@ -60,7 +60,7 @@ export default function Navbar() {
                   href={link.href}
                   className={
                     isDemo
-                      ? "ml-2 px-4 py-2 rounded-lg bg-cyan text-background font-semibold text-sm hover:bg-cyan-300 transition-colors"
+                      ? "ml-2 px-4 py-2 rounded-lg bg-cyan text-background font-semibold text-sm hover:bg-cyan/80 transition-colors"
                       : `px-4 py-2 rounded-lg text-sm transition-colors ${
                           active
                             ? "text-cyan bg-cyan-dim"

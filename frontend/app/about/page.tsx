@@ -10,7 +10,7 @@ const team = [
     role: "AI Engineer",
     focus: "Table Detection Specialist",
     initials: "MO",
-    color: "#00d4ff",
+    color: "#cf5f49",
     image: "/team/marwan-osama.jpg",
   },
   {
@@ -18,7 +18,7 @@ const team = [
     role: "AI Engineer",
     focus: "TSR Specialist",
     initials: "AH",
-    color: "#7c3aed",
+    color: "#7f8e78",
     image: "/team/ahmed-hussein.jpg",
   },
   {
@@ -26,7 +26,7 @@ const team = [
     role: "AI Engineer",
     focus: "TSR Specialist",
     initials: "AS",
-    color: "#00d4ff",
+    color: "#cf5f49",
     image: "/team/abdelrahman-soliman.jpg",
   },
   {
@@ -34,7 +34,7 @@ const team = [
     role: "AI Engineer",
     focus: "OCR Specialist",
     initials: "KH",
-    color: "#7c3aed",
+    color: "#7f8e78",
     image: "/team/kareem-halaby.jpg",
   },
   {
@@ -42,7 +42,7 @@ const team = [
     role: "AI Engineer",
     focus: "OCR Specialist",
     initials: "ZA",
-    color: "#00d4ff",
+    color: "#cf5f49",
     image: "/team/zeyad-anwar.jpg",
   },
 ];
@@ -79,14 +79,14 @@ export default function AboutPage() {
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
       {/* Header */}
       <div className="text-center mb-10 sm:mb-16">
-        <span className="inline-block px-3 py-1 rounded-full border border-cyan/20 bg-[rgba(0,212,255,0.1)] text-cyan text-xs font-mono mb-4">
-          The Parsers · Macathon 2026
+        <span className="inline-block px-3 py-1 rounded-full border border-cyan/20 bg-cyan-dim text-cyan text-xs font-mono mb-4">
+          ParseLab · Macathon 2026
         </span>
         <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-text mb-4">
           About the Project
         </h1>
         <p className="text-muted-2 max-w-2xl mx-auto leading-relaxed">
-          The Parsers is a Macathon team tackling a real-world data extraction
+          ParseLab is a Macathon team tackling a real-world data extraction
           problem: turning images of tables into machine-readable structured
           data without manual copying. Our approach involves reviewing over 20
           research papers and current state-of-the-art (SOTA) methods to develop
@@ -103,7 +103,7 @@ export default function AboutPage() {
           {team.map((member) => (
             <div
               key={member.name}
-              className="glass rounded-2xl p-6 text-center gradient-border hover:bg-white/[0.05] transition-all"
+              className="glass rounded-2xl p-6 text-center gradient-border hover:bg-overlay transition-all"
             >
               <MemberAvatar member={member} />
               <p className="text-text font-semibold text-sm">{member.name}</p>
@@ -159,7 +159,7 @@ export default function AboutPage() {
       <div className="text-center">
         <Link
           href="/demo"
-          className="inline-block px-10 py-4 rounded-xl bg-cyan text-background font-bold hover:bg-cyan-300 transition-colors glow-cyan"
+          className="inline-block px-10 py-4 rounded-xl bg-cyan text-background font-bold hover:bg-cyan/80 transition-colors glow-cyan"
         >
           Try It Yourself →
         </Link>

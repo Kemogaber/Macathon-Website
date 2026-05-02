@@ -38,7 +38,7 @@ export default function DashboardPage() {
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
       <div className="flex items-end justify-between mb-8 flex-wrap gap-4">
         <div>
-          <span className="inline-block px-3 py-1 rounded-full border border-cyan/20 bg-[rgba(0,212,255,0.1)] text-cyan text-xs font-mono mb-3">
+          <span className="inline-block px-3 py-1 rounded-full border border-cyan/20 bg-cyan-dim text-cyan text-xs font-mono mb-3">
             Health Dashboard
           </span>
           <h1 className="text-3xl sm:text-4xl font-black text-text">System Status</h1>
@@ -48,7 +48,7 @@ export default function DashboardPage() {
 
       {error && (
         <div className="glass rounded-2xl p-4 border border-red-500/30 bg-red-500/5 mb-6">
-          <p className="text-red-400 text-sm">⚠ {error}</p>
+          <p className="text-red-700 dark:text-red-300 text-sm">⚠ {error}</p>
         </div>
       )}
 
@@ -108,8 +108,8 @@ export default function DashboardPage() {
                           <span
                             className={`px-2 py-0.5 rounded text-xs font-mono ${
                               r.status === "done"
-                                ? "bg-emerald-500/15 text-emerald-300"
-                                : "bg-red-500/15 text-red-300"
+                                ? "bg-purple-dim text-purple"
+                                : "bg-red-500/10 text-red-700 dark:text-red-300"
                             }`}
                           >
                             {r.status}
@@ -117,7 +117,7 @@ export default function DashboardPage() {
                         </td>
                         <td className="px-3 py-2 font-mono text-xs">{formatMs(r.duration_ms)}</td>
                         <td className="px-3 py-2 font-mono text-xs">{r.table_count}</td>
-                        <td className="px-3 py-2 text-xs text-red-300 truncate max-w-xs">
+                        <td className="px-3 py-2 text-xs text-red-700 dark:text-red-300 truncate max-w-xs">
                           {r.error ?? ""}
                         </td>
                       </tr>
@@ -146,11 +146,11 @@ function Stat({
 }) {
   const accent =
     tone === "good"
-      ? "text-emerald-300"
+      ? "text-purple"
       : tone === "warn"
         ? "text-yellow-300 light:text-yellow-700"
         : tone === "bad"
-          ? "text-red-300"
+          ? "text-red-700 dark:text-red-300"
           : "text-text";
   return (
     <div className="glass rounded-2xl p-5">
@@ -169,11 +169,11 @@ function StatusPill({ healthy }: { healthy: boolean | null }) {
     );
   }
   return healthy ? (
-    <span className="px-3 py-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 text-xs font-mono">
+    <span className="px-3 py-1.5 rounded-full border border-purple/40 bg-purple-dim text-purple text-xs font-mono">
       ● Healthy
     </span>
   ) : (
-    <span className="px-3 py-1.5 rounded-full border border-red-500/40 bg-red-500/10 text-red-300 text-xs font-mono">
+    <span className="px-3 py-1.5 rounded-full border border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300 text-xs font-mono">
       ● Down
     </span>
   );

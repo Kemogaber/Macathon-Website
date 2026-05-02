@@ -25,8 +25,8 @@ interface Props {
 
 const HANDLE_R = 13;
 const ROT_OFFSET = 36;          // pixel distance of rotation handle above top edge
-const STROKE = "#00d4ff";
-const STROKE_INACTIVE = "rgba(124,58,237,0.55)";
+const STROKE = "#cf5f49";
+const STROKE_INACTIVE = "rgba(127,142,120,0.55)";
 const FRAME_MAX_VH = 80;        // viewport-height cap for the frame
 const ZOOM_STEPS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
 const MIN_SIZE = 12;            // min rect width/height in image pixels
@@ -305,7 +305,7 @@ export default function QuadEditor({
             onClick={() => setTool((t) => (t === "zoom-in" ? "none" : "zoom-in"))}
             className={`w-9 h-9 rounded-lg border flex items-center justify-center transition-colors ${
               tool === "zoom-in"
-                ? "border-cyan bg-[rgba(0,212,255,0.12)] text-cyan"
+                ? "border-cyan bg-cyan/10 text-cyan"
                 : "border-border hover:border-cyan/40 text-muted-2"
             }`}
             title="Zoom in — click on a point to zoom toward it"
@@ -320,7 +320,7 @@ export default function QuadEditor({
             onClick={() => setTool((t) => (t === "zoom-out" ? "none" : "zoom-out"))}
             className={`w-9 h-9 rounded-lg border flex items-center justify-center transition-colors ${
               tool === "zoom-out"
-                ? "border-cyan bg-[rgba(0,212,255,0.12)] text-cyan"
+                ? "border-cyan bg-cyan/10 text-cyan"
                 : "border-border hover:border-cyan/40 text-muted-2"
             }`}
             title="Zoom out — click on a point to zoom away from it"
@@ -335,7 +335,7 @@ export default function QuadEditor({
             onClick={() => setZoom("fit")}
             className={`px-3 h-9 rounded-lg border text-xs font-mono ${
               zoom === "fit"
-                ? "border-cyan bg-[rgba(0,212,255,0.12)] text-cyan"
+                ? "border-cyan bg-cyan/10 text-cyan"
                 : "border-border hover:border-cyan/40 text-muted-2"
             }`}
             title="Fit to view"
@@ -449,7 +449,7 @@ export default function QuadEditor({
                 <g key={ri}>
                   <polygon
                     points={points}
-                    fill={isActive ? "rgba(0,212,255,0.10)" : "rgba(124,58,237,0.05)"}
+                    fill={isActive ? "rgba(207,95,73,0.10)" : "rgba(127,142,120,0.08)"}
                     stroke={isActive ? STROKE : STROKE_INACTIVE}
                     strokeWidth={2 / scale}
                     strokeDasharray={isActive ? "" : `${4 / scale} ${4 / scale}`}
@@ -477,7 +477,7 @@ export default function QuadEditor({
                             width={handleR * 2}
                             height={handleR * 2}
                             rx={handleR / 2}
-                            fill="#0a0b0f"
+                            fill="var(--bg)"
                             stroke={STROKE}
                             strokeWidth={2 / scale}
                             style={{
@@ -502,7 +502,7 @@ export default function QuadEditor({
                         cy={rotPos[1]}
                         r={handleR}
                         fill={STROKE}
-                        stroke="#0a0b0f"
+                        stroke="var(--bg)"
                         strokeWidth={2 / scale}
                         style={{ pointerEvents: "all", touchAction: "none", cursor: "grab" }}
                         onPointerDown={(e) => {
@@ -524,8 +524,8 @@ export default function QuadEditor({
                             cx={corners[1][0]}
                             cy={corners[1][1]}
                             r={handleR * 1.2}
-                            fill="#ef4444"
-                            stroke="#0a0b0f"
+                            fill="#a84e42"
+                            stroke="var(--bg)"
                             strokeWidth={2 / scale}
                           />
                           <path
@@ -538,7 +538,7 @@ export default function QuadEditor({
                             } L ${corners[1][0] - handleR * 0.5} ${
                               corners[1][1] + handleR * 0.5
                             }`}
-                            stroke="#fff"
+                            stroke="var(--bg)"
                             strokeWidth={2 / scale}
                             strokeLinecap="round"
                           />

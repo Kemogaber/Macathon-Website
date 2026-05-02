@@ -104,7 +104,7 @@ export default function TableTabs({ jobId, tables, forceCarousel = false }: Prop
               onClick={() => setActive(i)}
               className={`px-4 py-1.5 rounded-lg text-sm font-mono border transition-colors ${
                 i === active
-                  ? "border-cyan bg-[rgba(0,212,255,0.12)] text-cyan"
+                  ? "border-cyan bg-cyan/10 text-cyan"
                   : "border-border text-muted-2 hover:border-overlay-strong"
               }`}
             >
@@ -161,7 +161,7 @@ export default function TableTabs({ jobId, tables, forceCarousel = false }: Prop
       <div className="flex gap-2">
         <button
           onClick={downloadCsv}
-          className="px-4 py-2 rounded-lg bg-cyan text-background font-bold text-sm hover:bg-cyan-300 transition-colors glow-cyan"
+          className="px-4 py-2 rounded-lg bg-cyan text-background font-bold text-sm hover:bg-cyan/80 transition-colors glow-cyan"
         >
           Download edited CSV
         </button>
@@ -206,10 +206,10 @@ function ConfidenceBadge({ label, value }: { label: string; value: number }) {
   const pct = Math.round(value * 100);
   const tone =
     value >= 0.85
-      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+      ? "border-purple/40 bg-purple-dim text-purple"
       : value >= 0.6
         ? "border-yellow-500/40 bg-yellow-500/10 text-yellow-300 light:text-yellow-700"
-        : "border-red-500/40 bg-red-500/10 text-red-300";
+        : "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300";
   return (
     <span
       className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-mono ${tone}`}

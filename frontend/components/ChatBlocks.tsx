@@ -106,7 +106,7 @@ export function parseSegments(content: string): Segment[] {
 // ---------------------------------------------------------------------------
 // Chart renderer
 // ---------------------------------------------------------------------------
-const PALETTE = ["#00d4ff", "#7c3aed", "#10b981", "#f59e0b", "#ef4444", "#3b82f6"];
+const PALETTE = ["#cf5f49", "#7f8e78", "#b45a45", "#9d7d52", "#a84e42", "#6f7e68"];
 
 function coerceNumber(v: unknown): number | unknown {
   if (typeof v === "number") return v;
@@ -161,13 +161,13 @@ function renderChart(
 ): React.ReactElement {
   const common = (
     <>
-      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+      <CartesianGrid strokeDasharray="3 3" stroke="rgba(78,51,47,0.14)" />
       <XAxis dataKey={spec.x} tick={{ fontSize: 10 }} />
       <YAxis tick={{ fontSize: 10 }} />
       <Tooltip
         contentStyle={{
-          background: "#0a0b0f",
-          border: "1px solid rgba(255,255,255,0.15)",
+          background: "var(--surface-3)",
+          border: "1px solid var(--border)",
           fontSize: 11,
         }}
       />
@@ -214,8 +214,8 @@ function renderChart(
         <PieChart>
           <Tooltip
             contentStyle={{
-              background: "#0a0b0f",
-              border: "1px solid rgba(255,255,255,0.15)",
+              background: "var(--surface-3)",
+              border: "1px solid var(--border)",
               fontSize: 11,
             }}
           />
@@ -328,7 +328,7 @@ export function RecommendBlock({ spec }: { spec: RecommendSpec | null }) {
   if (sites.length === 0) return <BadBlock label="recommend" />;
 
   return (
-    <div className="my-2 rounded-lg border border-cyan/30 bg-[rgba(0,212,255,0.06)] p-2.5 text-xs">
+    <div className="my-2 rounded-lg border border-cyan/30 bg-cyan/10 p-2.5 text-xs">
       <div className="flex items-center gap-2 font-mono text-cyan">
         <span>★ Recommended for</span>
         <span className="px-1.5 py-0.5 rounded-md bg-cyan/15 border border-cyan/30 lowercase">
@@ -539,7 +539,7 @@ export function CalendarBlock({ spec }: { spec: CalendarSpec | null }) {
   );
 
   return (
-    <div className="my-2 rounded-lg border border-cyan/30 bg-[rgba(0,212,255,0.04)] p-2.5 text-xs">
+    <div className="my-2 rounded-lg border border-cyan/30 bg-cyan/10 p-2.5 text-xs">
       {spec.title && (
         <div className="font-mono text-cyan mb-2 px-1">{spec.title}</div>
       )}
@@ -609,8 +609,8 @@ function MiniMonth({
                       key={ei}
                       className="truncate rounded-sm px-0.5 leading-tight"
                       style={{
-                        background: e.color ?? "rgba(0,212,255,0.55)",
-                        color: "#0a0b0f",
+                        background: e.color ?? "rgba(207,95,73,0.55)",
+                        color: "var(--bg)",
                         fontSize: 8,
                       }}
                     >

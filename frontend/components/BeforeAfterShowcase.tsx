@@ -39,7 +39,7 @@ function BeforeCard() {
         Before — your image
       </div>
       <div
-        className="relative rounded-xl border border-border bg-[#1a1d24] p-4 shadow-2xl overflow-hidden"
+        className="relative rounded-xl border border-border bg-[#6a4a43] p-4 shadow-2xl overflow-hidden"
         style={{ transform: "rotate(-1.5deg)" }}
       >
         {/* Faux paper */}
@@ -133,7 +133,7 @@ function AfterCard() {
       <div className="rounded-xl border border-cyan/30 bg-surface-3 shadow-2xl overflow-hidden">
         <div className="px-4 py-2 border-b border-border bg-overlay text-[10px] font-mono text-muted-2 flex items-center justify-between">
           <span>table_1.csv · 4 rows · 4 cols</span>
-          <span className="text-emerald-400">✓ extracted</span>
+          <span className="text-purple">✓ extracted</span>
         </div>
         <table className="w-full border-collapse text-sm">
           <thead>
@@ -150,7 +150,7 @@ function AfterCard() {
           </thead>
           <tbody>
             {sampleRows.map((row, i) => (
-              <tr key={i} className={i % 2 ? "bg-white/[0.02]" : ""}>
+              <tr key={i} className={i % 2 ? "bg-overlay" : ""}>
                 {row.map((c, j) => (
                   <td
                     key={j}

@@ -31,15 +31,15 @@ export default function HomePage() {
         <div
           aria-hidden
           className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full opacity-20 blur-3xl pointer-events-none"
-          style={{ background: "radial-gradient(ellipse, #00d4ff 0%, transparent 70%)" }}
+          style={{ background: "radial-gradient(ellipse, var(--cyan) 0%, transparent 70%)" }}
         />
         <div
           aria-hidden
           className="absolute top-20 left-1/4 w-[300px] h-[200px] rounded-full opacity-10 blur-3xl pointer-events-none"
-          style={{ background: "radial-gradient(ellipse, #7c3aed 0%, transparent 70%)" }}
+          style={{ background: "radial-gradient(ellipse, var(--purple) 0%, transparent 70%)" }}
         />
 
-        <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-cyan/20 bg-[rgba(0,212,255,0.15)] text-cyan text-xs font-mono mb-6">
+        <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-cyan/20 bg-cyan-dim text-cyan text-xs font-mono mb-6">
           <span className="w-1.5 h-1.5 rounded-full bg-cyan animate-pulse" />
           AI-Powered · Real-time Extraction
         </span>
@@ -60,7 +60,7 @@ export default function HomePage() {
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Link
             href="/demo"
-            className="px-8 py-4 rounded-xl bg-cyan text-background font-bold text-base hover:bg-cyan-300 transition-colors glow-cyan inline-block"
+            className="px-8 py-4 rounded-xl bg-cyan text-background font-bold text-base hover:bg-cyan/80 transition-colors glow-cyan inline-block"
           >
             Parse →
           </Link>
@@ -76,7 +76,7 @@ export default function HomePage() {
       <BeforeAfterShowcase />
 
       {/* Stats strip */}
-      <section className="border-y border-border bg-white/[0.015]">
+      <section className="border-y border-border bg-overlay">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 text-center">
           {stats.map((s) => (
             <div key={s.label}>
@@ -101,7 +101,7 @@ export default function HomePage() {
 
         <div className="grid md:grid-cols-3 gap-6">
           {features.map((f, i) => (
-            <div key={f.title} className="glass rounded-2xl p-7 gradient-border hover:bg-white/[0.06] transition-all">
+            <div key={f.title} className="glass rounded-2xl p-7 gradient-border hover:bg-overlay transition-all">
               <div className="flex items-center gap-3 mb-4">
                 <span className="text-xs font-mono text-muted">Stage {i + 1}</span>
               </div>
@@ -118,7 +118,7 @@ export default function HomePage() {
           <div
             aria-hidden
             className="absolute inset-0 opacity-10 pointer-events-none"
-            style={{ background: "radial-gradient(ellipse at 50% 0%, #00d4ff, transparent 70%)" }}
+            style={{ background: "radial-gradient(ellipse at 50% 0%, var(--cyan), transparent 70%)" }}
           />
           <h2 className="text-3xl md:text-4xl font-bold text-text mb-4 relative z-10">
             Ready to extract your first table?
@@ -126,7 +126,7 @@ export default function HomePage() {
           <p className="text-muted-2 mb-8 relative z-10">No sign-up required. Just upload and download.</p>
           <Link
             href="/demo"
-            className="relative z-10 inline-block px-10 py-4 rounded-xl bg-cyan text-background font-bold text-base hover:bg-cyan-300 transition-colors glow-cyan"
+            className="relative z-10 inline-block px-10 py-4 rounded-xl bg-cyan text-background font-bold text-base hover:bg-cyan/80 transition-colors glow-cyan"
           >
             Start Parsing →
           </Link>
