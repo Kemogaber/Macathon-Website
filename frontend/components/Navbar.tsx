@@ -38,7 +38,7 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
       <nav className="max-w-6xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between gap-2">
         <Link href="/" className="flex items-center gap-2 group shrink-0">
-          <span className="text-xl font-bold gradient-text">The Parsers</span>
+          <span className="text-xl font-bold gradient-text">ParseLab</span>
           <span className="text-xs px-2 py-0.5 rounded-full bg-cyan-dim text-cyan border border-cyan/20 font-mono">
             AI
           </span>
@@ -85,7 +85,14 @@ export default function Navbar() {
             aria-expanded={mobileOpen}
             className="w-10 h-10 rounded-lg border border-border bg-surface-3 hover:bg-overlay flex items-center justify-center"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+            >
               {mobileOpen ? (
                 <>
                   <path d="M6 6L18 18" />
